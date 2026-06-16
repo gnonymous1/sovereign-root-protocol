@@ -1,0 +1,110 @@
+# ============================================================
+# Sovereign Root Protocol (SRP) — .gitignore
+# ============================================================
+
+# --- Secrets & Credentials ---
+.env
+.env.*
+*.env
+*.secret
+secrets.json
+credentials.json
+*.pem
+*.key
+!cluster/certs/.gitkeep
+
+# Generated mTLS certificates (keep the directory, not the files)
+cluster/certs/*.key
+cluster/certs/*.crt
+cluster/certs/*.csr
+cluster/certs/*.pem
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.pyc
+.Python
+*.egg
+*.egg-info/
+dist/
+build/
+eggs/
+wheels/
+*.whl
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+MANIFEST
+pip-log.txt
+pip-delete-this-directory.txt
+
+# --- Virtual Environments ---
+.venv/
+venv/
+ENV/
+env/
+.env/
+
+# --- Sentence-Transformers Model Cache ---
+.cache/
+models/
+*.bin
+*.safetensors
+sentence_transformers/
+
+# --- Logs & Runtime State ---
+.logs/
+.pids/
+*.log
+*.pid
+*.sock
+/var/log/srp_*.log
+/var/run/srp_*.bin
+telemetry/logs/
+logs/
+
+# --- Ledger Data (sensitive audit records) ---
+telemetry/srp_audit.jsonl
+*.audit.jsonl
+
+# --- OS / Editor ---
+.DS_Store
+Thumbs.db
+desktop.ini
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.project
+.classpath
+
+# --- Node / Frontend Build (if applicable) ---
+node_modules/
+dist/
+.next/
+
+# --- Docker secrets ---
+docker-compose.override.yml
+
+# --- Kubernetes secrets ---
+k8s/secrets/
+
+# --- Test artifacts ---
+.pytest_cache/
+htmlcov/
+.coverage
+coverage.xml
+*.cover
+
+# --- BPF compiled objects ---
+*.o
+
+# --- Cluster nodes config with real IPs (template kept, overrides ignored) ---
+srp-node.json.local
+cluster/cluster_nodes.json.local

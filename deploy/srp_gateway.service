@@ -1,0 +1,46 @@
+[Unit]
+Description=Sovereign Root Protocol (SRP) — Gateway, Proxy & Admin Stack
+Documentation=https://github.com/anomalyco/opencode
+After=network.target network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+
+# Absolute path to the SRP project root
+WorkingDirectory=/opt/srp
+
+# Must run as root for eBPF/XDP hook injection (srp_filter.c)
+User=root
+Group=root
+
+# Launch the orchestrator that starts Module 1 (eBPF loader),
+# Module 2 (FastAPI proxy), and Module 3 (admin frontend)
+ExecStart=/usr/bin/python3 /opt/srp/launch.py
+
+# Graceful shutdown — SIGTERM propagates to child processes
+KillMode=process
+TimeoutStopSec=30
+SendSIGKILL=no
+
+# Automatic recovery on crash or OOM
+Restart=on-failure
+RestartSec=5
+
+# Rate-limit protection: max 5 restarts in 60 seconds
+StartLimitIntervalSec=60
+StartLimitBurst=5
+
+# Standard logging to journald
+StandardOutput=journal
+StandardError=journal
+
+# Environment variables for upstream AI provider API keys
+# Set these in an EnvironmentFile or override with systemctl edit
+Environment=OPENAI_API_KEY=
+Environment=ANTHROPIC_API_KEY=
+Environment=GOOGLE_API_KEY=
+Environment=COHERE_API_KEY=
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,62 @@
+{
+    "cluster_name": "srp-global-mesh",
+    "cluster_version": "2026.4.2",
+    "sync_port": 9200,
+    "heartbeat_interval_seconds": 2.0,
+    "heartbeat_timeout_seconds": 8.0,
+    "nodes": [
+        {
+            "id": "srp-node-us-east-01",
+            "region": "us-east-1",
+            "priority": 100,
+            "sync_host": "10.0.1.10",
+            "sync_port": 9200,
+            "proxy_host": "10.0.1.10",
+            "proxy_port": 9000,
+            "loader_host": "127.0.0.1",
+            "loader_port": 9001,
+            "tls_cert": "certs/us-east-01.crt",
+            "tls_key": "certs/us-east-01.key",
+            "tls_ca": "certs/ca.crt"
+        },
+        {
+            "id": "srp-node-eu-west-01",
+            "region": "eu-west-1",
+            "priority": 90,
+            "sync_host": "10.0.2.10",
+            "sync_port": 9200,
+            "proxy_host": "10.0.2.10",
+            "proxy_port": 9000,
+            "loader_host": "127.0.0.1",
+            "loader_port": 9001,
+            "tls_cert": "certs/eu-west-01.crt",
+            "tls_key": "certs/eu-west-01.key",
+            "tls_ca": "certs/ca.crt"
+        },
+        {
+            "id": "srp-node-ap-southeast-01",
+            "region": "ap-southeast-1",
+            "priority": 80,
+            "sync_host": "10.0.3.10",
+            "sync_port": 9200,
+            "proxy_host": "10.0.3.10",
+            "proxy_port": 9000,
+            "loader_host": "127.0.0.1",
+            "loader_port": 9001,
+            "tls_cert": "certs/ap-southeast-01.crt",
+            "tls_key": "certs/ap-southeast-01.key",
+            "tls_ca": "certs/ca.crt"
+        }
+    ],
+    "self": {
+        "id": "srp-node-us-east-01",
+        "interface": "eth0",
+        "proxy_port": 9000,
+        "loader_port": 9001,
+        "sync_port": 9200,
+        "notify_port": 9201,
+        "tls_cert": "certs/local.crt",
+        "tls_key": "certs/local.key",
+        "tls_ca": "certs/ca.crt"
+    }
+}

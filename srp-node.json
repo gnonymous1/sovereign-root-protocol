@@ -1,0 +1,21 @@
+{
+  "node_id": "test-node",
+  "mode": "software",
+  "interface": "eth0",
+  "proxy_port": 9000,
+  "loader_port": 9001,
+  "sync_port": 9200,
+  "notify_port": 9201,
+  "peers": [
+    {
+      "node_id": "peer-01",
+      "sync_host": "10.0.2.10",
+      "sync_port": 9200,
+      "proxy_host": "10.0.2.10",
+      "proxy_port": 9000
+    }
+  ],
+  "upstream_providers": [
+    "api.openai.com"
+  ]
+}

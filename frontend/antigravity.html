@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <meta
+            name="description"
+            content="Sovereign Root Protocol — Zero-G Antigravity Vector Field Monitoring Interface"
+        />
+        <title>SRP — Traffic Visualization Dashboard</title>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link
+            href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=Outfit:wght@300;400;600;700&display=swap"
+            rel="stylesheet"
+        />
+        <link rel="stylesheet" href="styles.css" />
+    </head>
+    <body>
+        <!-- HUD Overlay -->
+        <div id="hud-overlay">
+            <div id="hud-top-bar">
+                <div id="hud-logo">
+                    <span class="logo-icon">◈</span>
+                    <span class="logo-text">SOVEREIGN ROOT PROTOCOL</span>
+                    <span class="logo-version">v2026.4.2</span>
+                </div>
+                <div id="hud-status">
+                    <span
+                        id="ws-status"
+                        class="status-badge status-disconnected"
+                        >● DISCONNECTED</span
+                    >
+                    <span id="core-port" class="status-badge">PORT 9000</span>
+                </div>
+            </div>
+
+            <!-- Left Panel: Agent Status -->
+            <div id="panel-left" class="hud-panel">
+                <div class="panel-header">AUTONOMOUS AGENTS</div>
+                <div class="agent-card" id="agent-almir">
+                    <div class="agent-name">AL-MIR</div>
+                    <div class="agent-role">Sentry Engine · DPI</div>
+                    <div class="agent-status">
+                        <span class="agent-dot dot-active"></span>
+                        <span class="agent-state">SCANNING</span>
+                    </div>
+                </div>
+                <div class="agent-card" id="agent-almizan">
+                    <div class="agent-name">AL-MIZAN</div>
+                    <div class="agent-role">Scale Engine · Semantic</div>
+                    <div class="agent-status">
+                        <span class="agent-dot dot-active"></span>
+                        <span class="agent-state">ALIGNED</span>
+                    </div>
+                </div>
+                <div class="agent-card" id="agent-alqahr">
+                    <div class="agent-name">AL-QAHR</div>
+                    <div class="agent-role">Executioner · Firmware</div>
+                    <div class="agent-status">
+                        <span class="agent-dot dot-standby"></span>
+                        <span class="agent-state">STANDBY</span>
+                    </div>
+                </div>
+
+                <div class="panel-header" style="margin-top: 16px">METRICS</div>
+                <div class="metric-row">
+                    <span>Packets Inspected</span
+                    ><span id="m-inspected">0</span>
+                </div>
+                <div class="metric-row">
+                    <span>Approved</span
+                    ><span id="m-approved" class="metric-cyan">0</span>
+                </div>
+                <div class="metric-row">
+                    <span>Dropped</span
+                    ><span id="m-dropped" class="metric-crimson">0</span>
+                </div>
+                <div class="metric-row">
+                    <span>Active Nodes</span><span id="m-nodes">0</span>
+                </div>
+            </div>
+
+            <!-- Right Panel: Event Log -->
+            <div id="panel-right" class="hud-panel">
+                <div class="panel-header">LIVE EVENT STREAM</div>
+                <div id="event-log"></div>
+            </div>
+
+            <!-- Bottom Bar: Simulation Controls -->
+            <div id="hud-bottom-bar">
+                <div id="sim-controls">
+                    <select id="sim-provider">
+                        <option value="openai">OpenAI</option>
+                        <option value="anthropic">Anthropic</option>
+                        <option value="google">Google</option>
+                        <option value="cohere">Cohere</option>
+                    </select>
+                    <input
+                        type="text"
+                        id="sim-prompt"
+                        placeholder="Enter simulation prompt..."
+                    />
+                    <button id="btn-sim-safe" class="btn btn-cyan">
+                        ▶ SAFE PULSE
+                    </button>
+                    <button id="btn-sim-breach" class="btn btn-crimson">
+                        ⚠ BREACH TEST
+                    </button>
+                </div>
+                <div id="gatekeeper-display">
+                    <span class="gk-label">GATEKEEPER BIT</span>
+                    <span id="gk-value" class="gk-hex">0x00</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- WebGL Canvas (Three.js) -->
+        <canvas id="srp-canvas"></canvas>
+
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+        <script src="antigravity.js"></script>
+    </body>
+</html>

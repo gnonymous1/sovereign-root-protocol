@@ -1,0 +1,38 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: srp-orchestrator
+  labels:
+    app: srp
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: srp
+  template:
+    metadata:
+      labels:
+        app: srp
+    spec:
+      containers:
+        - name: orchestrator
+          image: srp-orchestrator:latest
+          ports:
+            - containerPort: 9000   # Core service
+            - containerPort: 9001   # Loader health
+            - containerPort: 8080   # Frontend
+          envFrom:
+            - secretRef:
+                name: srp-api-keys
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 9000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 9000
+            initialDelaySeconds: 15
+            periodSeconds: 20

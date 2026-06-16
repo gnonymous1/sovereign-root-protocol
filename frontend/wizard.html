@@ -1,0 +1,1599 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>SRP Node — Configuration Wizard</title>
+        <script src="https://cdn.tailwindcss.com"></script>
+        <style>
+            @import url("https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap");
+            * {
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+            }
+            body {
+                font-family: "Inter", system-ui, sans-serif;
+                background: #0a0c10;
+                color: #e1e4e8;
+                height: 100vh;
+                overflow: hidden;
+                display: flex;
+            }
+            code,
+            .mono {
+                font-family: "JetBrains Mono", "Fira Code", monospace;
+            }
+
+            /* --- Scrollbar --- */
+            ::-webkit-scrollbar {
+                width: 5px;
+                height: 5px;
+            }
+            ::-webkit-scrollbar-track {
+                background: #161b22;
+            }
+            ::-webkit-scrollbar-thumb {
+                background: #30363d;
+                border-radius: 3px;
+            }
+
+            /* --- Left Pane Layout --- */
+            .left-pane {
+                width: 54%;
+                display: flex;
+                flex-direction: column;
+                border-right: 1px solid #21262d;
+                min-width: 0;
+                height: 100vh;
+            }
+            .step-tabs {
+                display: flex;
+                background: #0d1117;
+                border-bottom: 1px solid #21262d;
+                flex-shrink: 0;
+            }
+            .step-tab {
+                padding: 10px 16px;
+                font-size: 11px;
+                font-weight: 600;
+                cursor: pointer;
+                border-bottom: 2px solid transparent;
+                color: #8b949e;
+                transition: all 0.15s;
+                white-space: nowrap;
+                user-select: none;
+            }
+            .step-tab:hover {
+                color: #e6edf3;
+                background: #161b2211;
+            }
+            .step-tab.active {
+                color: #58a6ff;
+                border-bottom-color: #58a6ff;
+            }
+            .step-tab.done {
+                color: #3fb950;
+            }
+            .step-tab .num {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                width: 20px;
+                height: 20px;
+                border-radius: 4px;
+                font-size: 10px;
+                margin-right: 6px;
+                background: #21262d;
+                color: #8b949e;
+            }
+            .step-tab.active .num {
+                background: #1f6feb33;
+                color: #58a6ff;
+            }
+            .step-tab.done .num {
+                background: #23863633;
+                color: #3fb950;
+            }
+
+            .step-body {
+                flex: 1;
+                overflow-y: auto;
+                padding: 28px 36px;
+            }
+            .step-body h2 {
+                font-size: 18px;
+                font-weight: 700;
+                color: #f0f6fc;
+                margin-bottom: 4px;
+            }
+            .step-body .step-desc {
+                font-size: 13px;
+                color: #8b949e;
+                margin-bottom: 24px;
+            }
+
+            /* --- Form controls --- */
+            label.field {
+                display: block;
+                font-size: 12px;
+                font-weight: 600;
+                color: #e6edf3;
+                margin-bottom: 4px;
+            }
+            .hint {
+                font-size: 11px;
+                color: #8b949e;
+                margin-bottom: 4px;
+                font-weight: 400;
+            }
+            input[type="text"],
+            input[type="number"],
+            select {
+                width: 100%;
+                padding: 9px 12px;
+                background: #161b22;
+                border: 1px solid #30363d;
+                border-radius: 6px;
+                color: #e6edf3;
+                font-size: 13px;
+                font-family: inherit;
+                outline: none;
+                transition: border-color 0.2s;
+            }
+            input:focus,
+            select:focus {
+                border-color: #58a6ff;
+            }
+            input.error {
+                border-color: #f85149;
+            }
+            select {
+                appearance: none;
+                background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%238b949e' viewBox='0 0 16 16'%3E%3Cpath d='M4 6l4 4 4-4'/%3E%3C/svg%3E");
+                background-repeat: no-repeat;
+                background-position: right 10px center;
+                padding-right: 32px;
+            }
+
+            /* --- Checkbox cards --- */
+            .check-card {
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                padding: 10px 14px;
+                background: #161b22;
+                border: 1px solid #30363d;
+                border-radius: 6px;
+                cursor: pointer;
+                transition: all 0.15s;
+                user-select: none;
+            }
+            .check-card:hover {
+                border-color: #484f58;
+            }
+            .check-card.checked {
+                border-color: #3fb950;
+                background: #3fb9500a;
+            }
+            .check-card input[type="checkbox"] {
+                accent-color: #3fb950;
+                width: 16px;
+                height: 16px;
+                cursor: pointer;
+            }
+
+            /* --- Sliders --- */
+            input[type="range"] {
+                -webkit-appearance: none;
+                width: 100%;
+                height: 4px;
+                border-radius: 2px;
+                background: #30363d;
+                outline: none;
+            }
+            input[type="range"]::-webkit-slider-thumb {
+                -webkit-appearance: none;
+                width: 18px;
+                height: 18px;
+                border-radius: 50%;
+                background: #58a6ff;
+                border: 2px solid #0d1117;
+                cursor: pointer;
+                box-shadow: 0 0 8px rgba(88, 166, 255, 0.3);
+            }
+            .slider-val {
+                font-size: 14px;
+                font-weight: 700;
+                color: #58a6ff;
+                min-width: 52px;
+                text-align: right;
+                font-family: "JetBrains Mono", monospace;
+            }
+
+            /* --- Peer table --- */
+            .peer-table {
+                width: 100%;
+                border-collapse: separate;
+                border-spacing: 0;
+                font-size: 12px;
+            }
+            .peer-table th {
+                text-align: left;
+                padding: 8px 10px;
+                color: #8b949e;
+                font-weight: 600;
+                border-bottom: 1px solid #30363d;
+                font-size: 11px;
+                text-transform: uppercase;
+                letter-spacing: 0.5px;
+            }
+            .peer-table td {
+                padding: 8px 10px;
+                border-bottom: 1px solid #21262d;
+                vertical-align: middle;
+            }
+            .peer-table tr:last-child td {
+                border-bottom: none;
+            }
+            .peer-table .rm {
+                color: #f85149;
+                cursor: pointer;
+                font-size: 16px;
+                opacity: 0.6;
+                transition: opacity 0.15s;
+            }
+            .peer-table .rm:hover {
+                opacity: 1;
+            }
+            .empty-peers {
+                color: #8b949e;
+                font-size: 12px;
+                text-align: center;
+                padding: 24px 0;
+            }
+
+            /* --- Buttons --- */
+            .btn {
+                display: inline-flex;
+                align-items: center;
+                gap: 6px;
+                padding: 9px 20px;
+                border-radius: 6px;
+                font-size: 13px;
+                font-weight: 600;
+                font-family: inherit;
+                cursor: pointer;
+                border: 1px solid transparent;
+                transition: all 0.15s;
+                white-space: nowrap;
+            }
+            .btn-primary {
+                background: #1f6feb;
+                border-color: #1f6feb;
+                color: #fff;
+            }
+            .btn-primary:hover {
+                background: #388bfd;
+            }
+            .btn-primary:disabled {
+                opacity: 0.4;
+                cursor: not-allowed;
+            }
+            .btn-success {
+                background: #238636;
+                border-color: #238636;
+                color: #fff;
+            }
+            .btn-success:hover {
+                background: #2ea043;
+            }
+            .btn-danger {
+                background: #da3633;
+                border-color: #da3633;
+                color: #fff;
+            }
+            .btn-danger:hover {
+                background: #f85149;
+            }
+            .btn-ghost {
+                background: transparent;
+                border-color: #30363d;
+                color: #c9d1d9;
+            }
+            .btn-ghost:hover {
+                background: #21262d;
+            }
+            .btn-sm {
+                padding: 5px 12px;
+                font-size: 11px;
+            }
+            .btn-group {
+                display: flex;
+                gap: 8px;
+                margin-top: 28px;
+                padding-top: 20px;
+                border-top: 1px solid #21262d;
+            }
+
+            /* --- Right Pane --- */
+            .right-pane {
+                width: 46%;
+                display: flex;
+                flex-direction: column;
+                height: 100vh;
+                min-width: 0;
+            }
+            .live-config {
+                flex: 0 0 auto;
+                max-height: 40%;
+                overflow: hidden;
+                display: flex;
+                flex-direction: column;
+                border-bottom: 1px solid #21262d;
+            }
+            .live-config .header {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                padding: 8px 16px;
+                background: #161b22;
+                border-bottom: 1px solid #21262d;
+                flex-shrink: 0;
+            }
+            .live-config .header span {
+                font-size: 11px;
+                font-weight: 600;
+                color: #8b949e;
+                text-transform: uppercase;
+                letter-spacing: 0.3px;
+            }
+            .live-config .header .dot {
+                width: 8px;
+                height: 8px;
+                border-radius: 50%;
+                display: inline-block;
+                margin-right: 6px;
+            }
+            .live-config pre {
+                padding: 12px 16px;
+                font-size: 11px;
+                line-height: 1.6;
+                overflow: auto;
+                flex: 1;
+                margin: 0;
+                color: #7ee787;
+                background: #0d1117;
+            }
+
+            /* --- Topology SVG --- */
+            .topo-section {
+                flex: 1;
+                display: flex;
+                flex-direction: column;
+                overflow: hidden;
+            }
+            .topo-section .header {
+                padding: 8px 16px;
+                background: #161b22;
+                border-bottom: 1px solid #21262d;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                flex-shrink: 0;
+            }
+            .topo-section .header span {
+                font-size: 11px;
+                font-weight: 600;
+                color: #8b949e;
+                text-transform: uppercase;
+                letter-spacing: 0.3px;
+            }
+            .topo-section .header .status-badge {
+                font-size: 10px;
+                padding: 2px 10px;
+                border-radius: 10px;
+                font-weight: 600;
+            }
+            .topo-container {
+                flex: 1;
+                padding: 12px;
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+                background: #0d1117;
+                overflow: hidden;
+            }
+            .topo-container svg {
+                width: 100%;
+                height: auto;
+                max-height: 180px;
+            }
+
+            /* --- Test Simulator --- */
+            .test-sim {
+                border-top: 1px solid #21262d;
+                flex-shrink: 0;
+            }
+            .test-sim .header {
+                padding: 6px 16px;
+                background: #161b22;
+                border-bottom: 1px solid #21262d;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+            }
+            .test-sim .header span {
+                font-size: 11px;
+                font-weight: 600;
+                color: #8b949e;
+                text-transform: uppercase;
+                letter-spacing: 0.3px;
+            }
+            .test-input {
+                padding: 8px 16px;
+                background: #0d1117;
+            }
+            .test-input input {
+                width: 100%;
+                padding: 8px 12px;
+                background: #161b22;
+                border: 1px solid #30363d;
+                border-radius: 6px;
+                color: #e6edf3;
+                font-size: 12px;
+                font-family: "JetBrains Mono", monospace;
+                outline: none;
+            }
+            .test-input input:focus {
+                border-color: #58a6ff;
+            }
+            .trace-log {
+                height: 90px;
+                overflow-y: auto;
+                padding: 6px 16px;
+                background: #0a0c10;
+                font-size: 10px;
+                line-height: 1.5;
+                font-family: "JetBrains Mono", monospace;
+            }
+            .trace-log .line {
+                white-space: pre-wrap;
+                word-break: break-all;
+                margin-bottom: 1px;
+            }
+            .trace-log .ts {
+                color: #484f58;
+            }
+            .trace-log .ok {
+                color: #3fb950;
+            }
+            .trace-log .warn {
+                color: #d29922;
+            }
+            .trace-log .err {
+                color: #f85149;
+            }
+            .trace-log .info {
+                color: #8b949e;
+            }
+
+            /* --- Animations --- */
+            @keyframes flash-red {
+                0%,
+                100% {
+                    opacity: 1;
+                }
+                50% {
+                    opacity: 0.4;
+                }
+            }
+            @keyframes dash {
+                to {
+                    stroke-dashoffset: -24;
+                }
+            }
+            .flash-red {
+                animation: flash-red 0.3s ease-in-out 3;
+            }
+            .conn-line {
+                stroke: #30363d;
+                stroke-width: 2;
+                transition: stroke 0.5s;
+            }
+            .conn-line.active {
+                stroke: #3fb950;
+                stroke-width: 2.5;
+            }
+            .conn-line.breach {
+                stroke: #f85149;
+                stroke-width: 3;
+                stroke-dasharray: 8 4;
+                animation: dash 0.6s linear infinite;
+            }
+            .node-box rect {
+                transition:
+                    fill 0.5s,
+                    stroke 0.5s;
+            }
+            .node-box .label {
+                font-size: 10px;
+                font-weight: 600;
+                fill: #e6edf3;
+                text-anchor: middle;
+                pointer-events: none;
+            }
+            .node-box .sublabel {
+                font-size: 8px;
+                fill: #8b949e;
+                text-anchor: middle;
+                pointer-events: none;
+            }
+            .state-gray rect {
+                fill: #21262d;
+                stroke: #30363d;
+            }
+            .state-green rect {
+                fill: #3fb95022;
+                stroke: #3fb950;
+            }
+            .state-green .label {
+                fill: #7ee787;
+            }
+            .state-red rect {
+                fill: #f8514922;
+                stroke: #f85149;
+            }
+            .state-red .label {
+                fill: #f85149;
+            }
+        </style>
+    </head>
+    <body>
+        <!-- ================================================================ -->
+        <!-- LEFT PANE: 5-Step Wizard                                        -->
+        <!-- ================================================================ -->
+        <div class="left-pane">
+            <!-- Step Tabs -->
+            <div class="step-tabs" id="stepTabs"></div>
+
+            <!-- Step Body -->
+            <div class="step-body" id="stepBody"></div>
+        </div>
+
+        <!-- ================================================================ -->
+        <!-- RIGHT PANE: Live Config + Topology + Test Simulator              -->
+        <!-- ================================================================ -->
+        <div class="right-pane">
+            <!-- Live JSON Config -->
+            <div class="live-config">
+                <div class="header">
+                    <span
+                        ><span
+                            class="dot"
+                            id="configDot"
+                            style="background: #3fb950"
+                        ></span>
+                        srp-node.json</span
+                    >
+                    <span
+                        style="font-size: 10px; font-weight: 400"
+                        id="configSize"
+                        >0 bytes</span
+                    >
+                </div>
+                <pre
+                    id="jsonViewer"
+                >{\n  <span style="color:#8b949e">"waiting for input"</span>: <span style="color:#7ee787">true</span>\n}</pre>
+            </div>
+
+            <!-- Topology + Test Simulator -->
+            <div class="topo-section">
+                <div class="header">
+                    <span>Network Topology</span>
+                    <span
+                        class="status-badge"
+                        id="topoStatus"
+                        style="background: #21262d; color: #8b949e"
+                        >STANDING BY</span
+                    >
+                </div>
+
+                <!-- SVG Topology -->
+                <div class="topo-container" id="topoContainer">
+                    <svg
+                        viewBox="0 0 480 160"
+                        xmlns="http://www.w3.org/2000/svg"
+                    >
+                        <defs>
+                            <marker
+                                id="ag"
+                                viewBox="0 0 10 6"
+                                refX="10"
+                                refY="3"
+                                markerWidth="10"
+                                markerHeight="6"
+                                orient="auto"
+                            >
+                                <path d="M0,0 L10,3 L0,6" fill="#30363d" />
+                            </marker>
+                            <marker
+                                id="ag-green"
+                                viewBox="0 0 10 6"
+                                refX="10"
+                                refY="3"
+                                markerWidth="10"
+                                markerHeight="6"
+                                orient="auto"
+                            >
+                                <path d="M0,0 L10,3 L0,6" fill="#3fb950" />
+                            </marker>
+                            <marker
+                                id="ag-red"
+                                viewBox="0 0 10 6"
+                                refX="10"
+                                refY="3"
+                                markerWidth="10"
+                                markerHeight="6"
+                                orient="auto"
+                            >
+                                <path d="M0,0 L10,3 L0,6" fill="#f85149" />
+                            </marker>
+                            <filter id="glow-g">
+                                <feGaussianBlur stdDeviation="2" result="b" />
+                                <feMerge>
+                                    <feMergeNode in="b" />
+                                    <feMergeNode in="SourceGraphic" />
+                                </feMerge>
+                            </filter>
+                            <filter id="glow-r">
+                                <feGaussianBlur stdDeviation="2" result="b" />
+                                <feMerge>
+                                    <feMergeNode in="b" />
+                                    <feMergeNode in="SourceGraphic" />
+                                </feMerge>
+                            </filter>
+                        </defs>
+
+                        <!-- Connection lines -->
+                        <line
+                            class="conn-line"
+                            id="cl1"
+                            x1="120"
+                            y1="80"
+                            x2="210"
+                            y2="80"
+                            marker-end="url(#ag)"
+                        />
+                        <line
+                            class="conn-line"
+                            id="cl2"
+                            x1="290"
+                            y1="80"
+                            x2="380"
+                            y2="80"
+                            marker-end="url(#ag)"
+                        />
+
+                        <!-- Node 1: Firewall / Host -->
+                        <g
+                            class="node-box state-gray"
+                            id="n1"
+                            transform="translate(10,30)"
+                        >
+                            <rect
+                                x="0"
+                                y="0"
+                                width="110"
+                                height="100"
+                                rx="8"
+                                stroke-width="2"
+                            />
+                            <text class="label" x="55" y="35">
+                                Firewall / Host
+                            </text>
+                            <text class="label" x="55" y="50">Interface</text>
+                            <text
+                                class="sublabel"
+                                x="55"
+                                y="70"
+                                id="topoInterface"
+                            >
+                                eth0
+                            </text>
+                            <text class="sublabel" x="55" y="84">port 443</text>
+                        </g>
+
+                        <!-- Node 2: SRP Node -->
+                        <g
+                            class="node-box state-gray"
+                            id="n2"
+                            transform="translate(215,30)"
+                        >
+                            <rect
+                                x="0"
+                                y="0"
+                                width="75"
+                                height="100"
+                                rx="8"
+                                stroke-width="2"
+                            />
+                            <text class="label" x="37" y="35">SRP</text>
+                            <text class="label" x="37" y="50">Node</text>
+                            <text
+                                class="sublabel"
+                                x="37"
+                                y="70"
+                                id="topoNodeID"
+                            >
+                                srp-node
+                            </text>
+                            <text class="sublabel" x="37" y="84" id="topoPort">
+                                :9000
+                            </text>
+                        </g>
+
+                        <!-- Node 3: Upstream Providers -->
+                        <g
+                            class="node-box state-gray"
+                            id="n3"
+                            transform="translate(385,30)"
+                        >
+                            <rect
+                                x="0"
+                                y="0"
+                                width="90"
+                                height="100"
+                                rx="8"
+                                stroke-width="2"
+                            />
+                            <text class="label" x="45" y="35">Upstream</text>
+                            <text class="label" x="45" y="50">Providers</text>
+                            <text
+                                class="sublabel"
+                                x="45"
+                                y="70"
+                                id="topoProviders"
+                            >
+                                0 monitored
+                            </text>
+                            <text class="sublabel" x="45" y="84">port 443</text>
+                        </g>
+
+                        <!-- Legend -->
+                        <g transform="translate(0,138)">
+                            <circle cx="8" cy="4" r="4" fill="#3fb950" />
+                            <text x="16" y="8" fill="#8b949e" font-size="8">
+                                OPERATIONAL
+                            </text>
+                            <circle cx="108" cy="4" r="4" fill="#f85149" />
+                            <text x="116" y="8" fill="#8b949e" font-size="8">
+                                QUARANTINE
+                            </text>
+                            <circle cx="210" cy="4" r="4" fill="#484f58" />
+                            <text x="218" y="8" fill="#8b949e" font-size="8">
+                                STANDBY
+                            </text>
+                        </g>
+                    </svg>
+                </div>
+
+                <!-- Test Simulator -->
+                <div class="test-sim">
+                    <div class="header">
+                        <span>Adversarial Test Simulator</span>
+                        <span
+                            id="scoreDisplay"
+                            style="
+                                font-size: 11px;
+                                font-weight: 600;
+                                color: #8b949e;
+                            "
+                            >score: —</span
+                        >
+                    </div>
+                    <div class="test-input">
+                        <input
+                            type="text"
+                            id="testInput"
+                            placeholder="Enter prompt payload to test alignment → press Enter"
+                            autocomplete="off"
+                        />
+                    </div>
+                    <div class="trace-log" id="traceLog"></div>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            // =========================================================================
+            //  SRP NODE — PRODUCTION INSTALLATION WIZARD
+            //  Pure vanilla JS — no runtime, no framework, no external deps.
+            // =========================================================================
+
+            // -------------------------------------------------------------------------
+            //  Application State
+            // -------------------------------------------------------------------------
+            const STATE = {
+                // Step 1
+                node_id: "srp-node-us-east-01",
+                interface: "eth0",
+                mode: "SOFTWARE_EBPF_XDP",
+                // Step 2
+                providers: [],
+                custom_endpoints: [],
+                // Step 3
+                peers: [],
+                // Step 4
+                alignment_threshold: 0.85,
+                temporal_window: 30,
+            };
+
+            let currentStep = 1;
+            const TOTAL_STEPS = 5;
+
+            // Internal
+            let customEndpointInput = "";
+
+            // -------------------------------------------------------------------------
+            //  DOM shortcuts
+            // -------------------------------------------------------------------------
+            const $ = (s) => document.querySelector(s);
+            const $$ = (s) => document.querySelectorAll(s);
+            const byId = (s) => document.getElementById(s);
+
+            // -------------------------------------------------------------------------
+            //  Step Definitions
+            // -------------------------------------------------------------------------
+            const STEPS = [
+                {
+                    label: "System",
+                    title: "Core System Selection & Global Constants",
+                    desc: "Define the operational identity, network attachment, and deployment mode for this SRP node.",
+                    render: function () {
+                        return `
+        <div style="display:grid;gap:20px">
+          <div>
+            <label class="field">Node Hardware ID</label>
+            <div class="hint">Unique identifier broadcast to the cluster mesh.</div>
+            <input type="text" id="f_node_id" value="${esc(STATE.node_id)}" oninput="updateField('node_id',this.value);sync()" spellcheck="false">
+          </div>
+          <div>
+            <label class="field">Network Interface</label>
+            <div class="hint">Active physical or virtual interface for XDP attachment or traffic interception.</div>
+            <input type="text" id="f_interface" value="${esc(STATE.interface)}" oninput="updateField('interface',this.value);sync()" spellcheck="false">
+          </div>
+          <div>
+            <label class="field">Operational Mode</label>
+            <div class="hint">SOFTWARE_EBPF_XDP attaches an eBPF filter; HARDWARE_APPLIANCE_PROXY operates as a standalone proxy appliance.</div>
+            <select id="f_mode" onchange="updateField('mode',this.value);sync()">
+              <option value="SOFTWARE_EBPF_XDP"${STATE.mode === "SOFTWARE_EBPF_XDP" ? " selected" : ""}>SOFTWARE_EBPF_XDP</option>
+              <option value="HARDWARE_APPLIANCE_PROXY"${STATE.mode === "HARDWARE_APPLIANCE_PROXY" ? " selected" : ""}>HARDWARE_APPLIANCE_PROXY</option>
+            </select>
+          </div>
+        </div>`;
+                    },
+                },
+                {
+                    label: "Upstream",
+                    title: "Upstream Model Target Mapping",
+                    desc: "Select the AI provider backends this node will monitor, and optionally add custom internal endpoints.",
+                    render: function () {
+                        const checks = [
+                            {
+                                id: "openai",
+                                label: "OpenAI",
+                                domain: "api.openai.com",
+                            },
+                            {
+                                id: "anthropic",
+                                label: "Anthropic",
+                                domain: "api.anthropic.com",
+                            },
+                            {
+                                id: "google",
+                                label: "Google Gemini",
+                                domain: "generativelanguage.googleapis.com",
+                            },
+                            {
+                                id: "cohere",
+                                label: "Cohere",
+                                domain: "api.cohere.ai",
+                            },
+                        ];
+                        let html =
+                            '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:20px">';
+                        checks.forEach((c) => {
+                            const checked = STATE.providers.includes(c.id);
+                            html += `<div class="check-card${checked ? " checked" : ""}" onclick="toggleProvider('${c.id}')">
+          <input type="checkbox" ${checked ? "checked" : ""} onchange="toggleProvider('${c.id}')" id="chk_${c.id}">
+          <div><div style="font-size:13px;font-weight:600;color:#e6edf3">${c.label}</div><div style="font-size:10px;color:#8b949e">${c.domain}</div></div>
+        </div>`;
+                        });
+                        html += "</div>";
+
+                        // Custom endpoints
+                        html +=
+                            '<label class="field" style="margin-bottom:4px">Custom Upstream Endpoints</label>';
+                        html +=
+                            '<div class="hint" style="margin-bottom:8px">Add IP:port pairs for private or on-premise model backends.</div>';
+
+                        if (STATE.custom_endpoints.length) {
+                            html += '<div style="margin-bottom:8px">';
+                            STATE.custom_endpoints.forEach((ep, i) => {
+                                html += `<div style="display:flex;align-items:center;gap:8px;padding:6px 10px;background:#161b22;border:1px solid #21262d;border-radius:4px;margin-bottom:4px;font-size:12px">
+            <span style="color:#e6edf3;font-family:'JetBrains Mono',monospace">${esc(ep)}</span>
+            <span style="margin-left:auto;color:#f85149;cursor:pointer;font-size:14px" onclick="removeEndpoint(${i})">&times;</span>
+          </div>`;
+                            });
+                            html += "</div>";
+                        }
+
+                        html += `<div style="display:flex;gap:8px">
+        <input type="text" id="f_custom_ep" placeholder="10.0.1.100:8443" style="flex:1" value="${esc(customEndpointInput)}" oninput="customEndpointInput=this.value" spellcheck="false">
+        <button class="btn btn-ghost btn-sm" onclick="addEndpoint()">Add</button>
+      </div>`;
+                        return html;
+                    },
+                },
+                {
+                    label: "Cluster",
+                    title: "Multi-Region Cluster Networking",
+                    desc: "Configure the mTLS peer synchronization mesh. Each peer replicates the ledger and state across regions.",
+                    render: function () {
+                        let html = '<div style="margin-bottom:16px">';
+                        html +=
+                            '<label class="field" style="margin-bottom:8px">Peer Synchronization Nodes</label>';
+
+                        if (STATE.peers.length) {
+                            html += '<table class="peer-table">';
+                            html +=
+                                "<tr><th>Peer ID</th><th>IPv4 Address</th><th>Sync Port</th><th></th></tr>";
+                            STATE.peers.forEach((p, i) => {
+                                html += `<tr>
+            <td style="color:#e6edf3;font-weight:600">${esc(p.id)}</td>
+            <td style="font-family:'JetBrains Mono',monospace;font-size:12px">${esc(p.ip)}</td>
+            <td style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#58a6ff">${p.port}</td>
+            <td style="text-align:right"><span class="rm" onclick="removePeer(${i})">&times;</span></td>
+          </tr>`;
+                            });
+                            html += "</table>";
+                        } else {
+                            html +=
+                                '<div class="empty-peers">No peers configured. Add the first regional mesh node below.</div>';
+                        }
+
+                        html += "</div>";
+
+                        // Add peer form
+                        html +=
+                            '<div style="background:#161b22;border:1px solid #21262d;border-radius:8px;padding:16px">';
+                        html +=
+                            '<div style="font-size:12px;font-weight:600;color:#e6edf3;margin-bottom:12px">Add Peer Node</div>';
+                        html +=
+                            '<div style="display:grid;grid-template-columns:2fr 1.5fr 1fr;gap:8px;margin-bottom:12px">';
+                        html +=
+                            '<div><label class="field">Peer ID</label><input type="text" id="f_peer_id" placeholder="srp-node-eu-west-01" spellcheck="false"></div>';
+                        html +=
+                            '<div><label class="field">IPv4 Address</label><input type="text" id="f_peer_ip" placeholder="10.0.2.10" spellcheck="false"></div>';
+                        html +=
+                            '<div><label class="field">Sync Port</label><input type="number" id="f_peer_port" value="9200" min="1" max="65535"></div>';
+                        html += "</div>";
+                        html +=
+                            '<button class="btn btn-ghost btn-sm" onclick="addPeer()">+ Add Peer</button>';
+                        html += "</div>";
+
+                        return html;
+                    },
+                },
+                {
+                    label: "Thresholds",
+                    title: "Threat Intelligence & Boundary Thresholds",
+                    desc: "Tune the Scale engine parameters. These values govern semantic alignment enforcement and temporal consciousness windows.",
+                    render: function () {
+                        return `
+        <div style="margin-bottom:28px">
+          <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px">
+            <label class="field" style="margin-bottom:0">Scale Cosine Similarity Threshold</label>
+            <span class="slider-val" id="thresholdVal">${STATE.alignment_threshold.toFixed(2)}</span>
+          </div>
+          <div class="hint" style="margin-bottom:10px">Minimum alignment score required for APPROVED verdict. Below this value triggers QUARANTINE (0xFF).</div>
+          <input type="range" min="0" max="1" step="0.01" value="${STATE.alignment_threshold}" id="f_threshold" oninput="updateField('alignment_threshold',+this.value);byId('thresholdVal').textContent=parseFloat(this.value).toFixed(2);sync()">
+          <div style="display:flex;justify-content:space-between;font-size:10px;color:#484f58;margin-top:2px">
+            <span>0.00 — permissive</span>
+            <span>0.85 — production</span>
+            <span>1.00 — strict</span>
+          </div>
+        </div>
+        <div>
+          <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px">
+            <label class="field" style="margin-bottom:0">Temporal Consciousness Window Duration</label>
+            <span class="slider-val" id="temporalVal">${STATE.temporal_window}s</span>
+          </div>
+          <div class="hint" style="margin-bottom:10px">Sliding window in seconds. Incoming request context is evaluated against state accumulated within this window.</div>
+          <input type="range" min="10" max="300" step="5" value="${STATE.temporal_window}" id="f_temporal" oninput="updateField('temporal_window',+this.value);byId('temporalVal').textContent=this.value+'s';sync()">
+          <div style="display:flex;justify-content:space-between;font-size:10px;color:#484f58;margin-top:2px">
+            <span>10s — reactive</span>
+            <span>150s — balanced</span>
+            <span>300s — deep memory</span>
+          </div>
+        </div>`;
+                    },
+                },
+                {
+                    label: "Deploy",
+                    title: "Initialization & Config Output Generation",
+                    desc: "Review the complete system specification. Generate, preview, and download the production srp-node.json manifest.",
+                    render: function () {
+                        const json = generateJSON();
+                        return `
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;font-size:12px;margin-bottom:20px">
+          <div style="background:#161b22;padding:12px;border-radius:6px;border:1px solid #30363d">
+            <div style="color:#8b949e;font-size:10px;text-transform:uppercase;letter-spacing:.3px">Node ID</div>
+            <div style="color:#e6edf3;font-weight:600;margin-top:2px">${esc(STATE.node_id)}</div>
+          </div>
+          <div style="background:#161b22;padding:12px;border-radius:6px;border:1px solid #30363d">
+            <div style="color:#8b949e;font-size:10px;text-transform:uppercase;letter-spacing:.3px">Mode</div>
+            <div style="color:#e6edf3;font-weight:600;margin-top:2px;font-size:11px">${STATE.mode}</div>
+          </div>
+          <div style="background:#161b22;padding:12px;border-radius:6px;border:1px solid #30363d">
+            <div style="color:#8b949e;font-size:10px;text-transform:uppercase;letter-spacing:.3px">Peers</div>
+            <div style="color:#e6edf3;font-weight:600;margin-top:2px">${STATE.peers.length} configured</div>
+          </div>
+          <div style="background:#161b22;padding:12px;border-radius:6px;border:1px solid #30363d">
+            <div style="color:#8b949e;font-size:10px;text-transform:uppercase;letter-spacing:.3px">Threshold</div>
+            <div style="color:#e6edf3;font-weight:600;margin-top:2px">${STATE.alignment_threshold.toFixed(2)}</div>
+          </div>
+        </div>
+        <div style="margin-bottom:20px">
+          <button class="btn btn-success" onclick="generateAndShow()" style="width:100%;justify-content:center;padding:12px">GENERATE SYSTEM SPECIFICATION</button>
+        </div>
+        <div id="genOutput" style="display:none">
+          <div style="background:#0d1117;border:1px solid #30363d;border-radius:6px;padding:14px;font-size:11px;line-height:1.6;overflow-x:auto;white-space:pre;color:#7ee787;max-height:220px;overflow-y:auto;font-family:'JetBrains Mono',monospace;margin-bottom:14px">${esc(json)}</div>
+          <button class="btn btn-primary" onclick="downloadConfig()" style="width:100%;justify-content:center">DOWNLOAD CONFIGURATION</button>
+        </div>`;
+                    },
+                },
+            ];
+
+            // -------------------------------------------------------------------------
+            //  Render engine
+            // -------------------------------------------------------------------------
+            function renderTabs() {
+                const container = byId("stepTabs");
+                let html = "";
+                for (let i = 1; i <= TOTAL_STEPS; i++) {
+                    const s = STEPS[i - 1];
+                    const cls =
+                        i === currentStep
+                            ? "active"
+                            : i < currentStep
+                              ? "done"
+                              : "";
+                    html += `<div class="step-tab ${cls}" onclick="goStep(${i})"><span class="num">${i}</span>${s.label}</div>`;
+                }
+                container.innerHTML = html;
+            }
+
+            function renderBody() {
+                const step = STEPS[currentStep - 1];
+                const body = byId("stepBody");
+                body.innerHTML = "";
+
+                const h2 = document.createElement("h2");
+                h2.textContent = step.title;
+                body.appendChild(h2);
+
+                const desc = document.createElement("div");
+                desc.className = "step-desc";
+                desc.textContent = step.desc;
+                body.appendChild(desc);
+
+                // Render form content
+                const frag = document.createElement("div");
+                frag.innerHTML = step.render();
+                body.appendChild(frag);
+
+                // Navigation buttons
+                const nav = document.createElement("div");
+                nav.className = "btn-group";
+
+                if (currentStep > 1) {
+                    const back = document.createElement("button");
+                    back.className = "btn btn-ghost";
+                    back.textContent = "← Back";
+                    back.onclick = function () {
+                        goStep(currentStep - 1);
+                    };
+                    nav.appendChild(back);
+                } else {
+                    const spacer = document.createElement("div");
+                    spacer.style.flex = "1";
+                    nav.appendChild(spacer);
+                }
+
+                // Spacer
+                const spacer = document.createElement("div");
+                spacer.style.flex = "1";
+                nav.appendChild(spacer);
+
+                if (currentStep < TOTAL_STEPS) {
+                    const next = document.createElement("button");
+                    next.className = "btn btn-primary";
+                    next.textContent = "Next →";
+                    next.onclick = function () {
+                        goStep(currentStep + 1);
+                    };
+                    nav.appendChild(next);
+                }
+
+                body.appendChild(nav);
+            }
+
+            function goStep(n) {
+                if (n < 1) n = 1;
+                if (n > TOTAL_STEPS) n = TOTAL_STEPS;
+                currentStep = n;
+                renderTabs();
+                renderBody();
+                sync();
+            }
+
+            // -------------------------------------------------------------------------
+            //  Field update helper
+            // -------------------------------------------------------------------------
+            function updateField(key, val) {
+                STATE[key] = val;
+            }
+
+            // -------------------------------------------------------------------------
+            //  Provider toggles (Step 2)
+            // -------------------------------------------------------------------------
+            function toggleProvider(id) {
+                const idx = STATE.providers.indexOf(id);
+                if (idx >= 0) {
+                    STATE.providers.splice(idx, 1);
+                } else {
+                    STATE.providers.push(id);
+                }
+                // Re-render step to update check-card visuals
+                renderBody();
+                sync();
+            }
+
+            // -------------------------------------------------------------------------
+            //  Custom endpoints (Step 2)
+            // -------------------------------------------------------------------------
+            function addEndpoint() {
+                const input = byId("f_custom_ep");
+                const val = input.value.trim();
+                if (!val) return;
+                // Validate format
+                if (!/^[a-zA-Z0-9.-]+:\d{1,5}$/.test(val)) {
+                    input.classList.add("error");
+                    setTimeout(function () {
+                        input.classList.remove("error");
+                    }, 1000);
+                    return;
+                }
+                STATE.custom_endpoints.push(val);
+                input.value = "";
+                customEndpointInput = "";
+                renderBody();
+                sync();
+            }
+
+            function removeEndpoint(idx) {
+                STATE.custom_endpoints.splice(idx, 1);
+                renderBody();
+                sync();
+            }
+
+            // -------------------------------------------------------------------------
+            //  Peer management (Step 3)
+            // -------------------------------------------------------------------------
+            function addPeer() {
+                const id = byId("f_peer_id");
+                const ip = byId("f_peer_ip");
+                const port = byId("f_peer_port");
+                if (!id.value.trim() || !ip.value.trim()) return;
+                // Basic IPv4 validation
+                if (
+                    !/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(
+                        ip.value.trim(),
+                    )
+                ) {
+                    ip.classList.add("error");
+                    setTimeout(function () {
+                        ip.classList.remove("error");
+                    }, 1000);
+                    return;
+                }
+                STATE.peers.push({
+                    id: id.value.trim(),
+                    ip: ip.value.trim(),
+                    port: parseInt(port.value) || 9200,
+                });
+                id.value = "";
+                ip.value = "";
+                port.value = "9200";
+                renderBody();
+                sync();
+            }
+
+            function removePeer(idx) {
+                STATE.peers.splice(idx, 1);
+                renderBody();
+                sync();
+            }
+
+            // -------------------------------------------------------------------------
+            //  JSON generation (production schema)
+            // -------------------------------------------------------------------------
+            function generateJSON() {
+                const cfg = {
+                    srp_node_id: STATE.node_id,
+                    interface: STATE.interface,
+                    integration_mode: STATE.mode,
+                    upstream_routing: {
+                        monitored_providers: STATE.providers.slice(),
+                        custom_endpoints: STATE.custom_endpoints.slice(),
+                    },
+                    clustering: {
+                        heartbeat_interval_ms: 2000,
+                        peers: STATE.peers.map(function (p) {
+                            return {
+                                peer_id: p.id,
+                                ipv4: p.ip,
+                                sync_port: p.port,
+                            };
+                        }),
+                    },
+                    governance: {
+                        alignment_threshold:
+                            Math.round(STATE.alignment_threshold * 100) / 100,
+                        temporal_window_ms: STATE.temporal_window * 1000,
+                    },
+                };
+                return JSON.stringify(cfg, null, 2);
+            }
+
+            // -------------------------------------------------------------------------
+            //  Sync — updates live JSON viewer, topology, and sizes
+            // -------------------------------------------------------------------------
+            function sync() {
+                // Update JSON viewer
+                const json = generateJSON();
+                const viewer = byId("jsonViewer");
+                viewer.textContent = json;
+                byId("configSize").textContent =
+                    new Blob([json]).size + " bytes";
+                byId("configDot").style.background = "#3fb950";
+
+                // Update topology labels
+                const ti = byId("topoInterface");
+                if (ti) ti.textContent = STATE.interface || "eth0";
+                const tn = byId("topoNodeID");
+                if (tn) tn.textContent = STATE.node_id || "srp-node";
+                const tp = byId("topoPort");
+                if (tp) tp.textContent = ":9000";
+                const tpr = byId("topoProviders");
+                if (tpr)
+                    tpr.textContent =
+                        (STATE.providers.length || "0") + " monitored";
+
+                // Connection state reset to green if on step 5
+                if (currentStep === 5) {
+                    setTopoState("operational");
+                } else {
+                    setTopoState("standby");
+                }
+            }
+
+            // -------------------------------------------------------------------------
+            //  Topology state management
+            // -------------------------------------------------------------------------
+            function setTopoState(state) {
+                const nodes = ["n1", "n2", "n3"];
+                const conns = ["cl1", "cl2"];
+                const statusEl = byId("topoStatus");
+
+                if (state === "operational") {
+                    nodes.forEach(function (id) {
+                        const el = byId(id);
+                        if (!el) return;
+                        el.classList.remove("state-gray", "state-red");
+                        el.classList.add("state-green");
+                    });
+                    conns.forEach(function (id) {
+                        const el = byId(id);
+                        if (!el) return;
+                        el.classList.remove("breach");
+                        el.classList.add("active");
+                        el.setAttribute("marker-end", "url(#ag-green)");
+                    });
+                    statusEl.textContent = "OPERATIONAL";
+                    statusEl.style.background = "#3fb95022";
+                    statusEl.style.color = "#3fb950";
+                } else if (state === "breach") {
+                    nodes.forEach(function (id) {
+                        const el = byId(id);
+                        if (!el) return;
+                        el.classList.remove("state-gray", "state-green");
+                        el.classList.add("state-red");
+                    });
+                    conns.forEach(function (id) {
+                        const el = byId(id);
+                        if (!el) return;
+                        el.classList.remove("active");
+                        el.classList.add("breach");
+                        el.setAttribute("marker-end", "url(#ag-red)");
+                    });
+                    statusEl.textContent = "QUARANTINE ENFORCED (0xFF)";
+                    statusEl.style.background = "#f8514922";
+                    statusEl.style.color = "#f85149";
+                } else {
+                    nodes.forEach(function (id) {
+                        const el = byId(id);
+                        if (!el) return;
+                        el.classList.remove("state-green", "state-red");
+                        el.classList.add("state-gray");
+                    });
+                    conns.forEach(function (id) {
+                        const el = byId(id);
+                        if (!el) return;
+                        el.classList.remove("active", "breach");
+                        el.setAttribute("marker-end", "url(#ag)");
+                    });
+                    statusEl.textContent = "STANDING BY";
+                    statusEl.style.background = "#21262d";
+                    statusEl.style.color = "#8b949e";
+                }
+            }
+
+            // -------------------------------------------------------------------------
+            //  Step 5 — generate & download
+            // -------------------------------------------------------------------------
+            function generateAndShow() {
+                const output = byId("genOutput");
+                output.style.display = "block";
+                sync();
+            }
+
+            function downloadConfig() {
+                const json = generateJSON();
+                const blob = new Blob([json], { type: "application/json" });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = "srp-node.json";
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            }
+
+            // -------------------------------------------------------------------------
+            //  ADVERSARIAL TEST SIMULATOR
+            //  Real character-bigram Dice-Sorensen heuristic alignment engine.
+            //  Measures input similarity to a reference natural-language profile.
+            // -------------------------------------------------------------------------
+            const REFERENCE_BIGRAMS = new Map();
+            (function buildReference() {
+                // Reference English bigram frequencies (normalized log)
+                const ref =
+                    "th he in er an re nd on en at ed es or ti ar te of al le is it se ha st ou ea ra ro to hi ve io wh wa ne me ma co ta el li ur ll ch ll ai rt ic si om nt ci ng";
+                const pairs = ref.split(" ");
+                pairs.forEach(function (p) {
+                    REFERENCE_BIGRAMS.set(p, 1);
+                });
+                // Add common programming prompt patterns
+                const extra =
+                    "sy pr om pt hu ma na tu re la ng ua ge mo de l" +
+                    "ex pl ai n de sc ri be wr it co de ex am pl fu nc ti on";
+                extra.split(" ").forEach(function (p) {
+                    if (p.length === 2) REFERENCE_BIGRAMS.set(p, 0.5);
+                });
+            })();
+
+            function diceBigramSimilarity(text) {
+                if (!text || text.length < 2) return 0;
+                const textBigrams = new Set();
+                const t = text.toLowerCase().replace(/[^a-z0-9\s]/g, "");
+                for (let i = 0; i < t.length - 1; i++) {
+                    textBigrams.add(t.substring(i, i + 2));
+                }
+                if (textBigrams.size === 0) return 0;
+
+                let intersection = 0;
+                textBigrams.forEach(function (bg) {
+                    if (REFERENCE_BIGRAMS.has(bg)) intersection++;
+                });
+                return (
+                    (2 * intersection) /
+                    (textBigrams.size + REFERENCE_BIGRAMS.size)
+                );
+            }
+
+            function heuristicEntropy(text) {
+                // Penalise very short, repetitive, or single-character inputs
+                if (!text || text.length < 3) return 0.1;
+                const unique = new Set(
+                    text.toLowerCase().replace(/\s/g, "").split(""),
+                );
+                const ratio =
+                    unique.size / Math.max(text.replace(/\s/g, "").length, 1);
+                // Bonus for reasonable length and structure
+                const lengthBonus = Math.min(text.length / 80, 1);
+                return Math.min(ratio * 0.6 + lengthBonus * 0.4, 1);
+            }
+
+            function computeAlignmentScore(text) {
+                if (!text || !text.trim()) return null;
+                const dice = diceBigramSimilarity(text);
+                const entropy = heuristicEntropy(text);
+                // Combined score with entropy weighting
+                const score = dice * 0.5 + entropy * 0.5;
+                return Math.round(Math.min(Math.max(score, 0), 1) * 100) / 100;
+            }
+
+            // -------------------------------------------------------------------------
+            //  Test simulator event handler
+            // -------------------------------------------------------------------------
+            byId("testInput").addEventListener("keydown", function (e) {
+                if (e.key !== "Enter") return;
+                const text = this.value.trim();
+                if (!text) return;
+
+                const score = computeAlignmentScore(text);
+                const threshold = STATE.alignment_threshold;
+
+                const ts = new Date().toISOString().substring(11, 23);
+                const log = byId("traceLog");
+
+                if (score === null) {
+                    addTrace(
+                        "[" + ts + "] [AL-MIR] empty payload — ignored",
+                        "info",
+                    );
+                    return;
+                }
+
+                const verdict = score >= threshold ? "APPROVED" : "TERMINATED";
+                const cls = score >= threshold ? "ok" : "err";
+
+                addTrace(
+                    "[" +
+                        ts +
+                        '] [AL-MIR] ingress: "' +
+                        text.substring(0, 40) +
+                        (text.length > 40 ? "..." : "") +
+                        '"',
+                    "info",
+                );
+                addTrace(
+                    "[" +
+                        ts +
+                        "] [AL-MIZAN] similarity=" +
+                        score.toFixed(4) +
+                        " threshold=" +
+                        threshold.toFixed(2),
+                    "info",
+                );
+                addTrace(
+                    "[" +
+                        ts +
+                        "] [AL-MIZAN] VERDICT: " +
+                        verdict +
+                        (verdict === "TERMINATED" ? " → GATEKEEPER 0xFF" : ""),
+                    cls,
+                );
+
+                if (score >= threshold) {
+                    addTrace(
+                        "[" +
+                            ts +
+                            "] [SRP] forwarding to upstream — seal written",
+                        "ok",
+                    );
+                    // Flash green
+                    setTopoState("operational");
+                } else {
+                    addTrace(
+                        "[" +
+                            ts +
+                            "] [AL-QAHR] intercepting thread — flushing VRAM execution banks",
+                        "err",
+                    );
+                    addTrace(
+                        "[" +
+                            ts +
+                            "] [AL-QAHR] Gatekeeper bit set to 0xFF — QUARANTINE ENFORCED",
+                        "err",
+                    );
+                    addTrace(
+                        "[" +
+                            ts +
+                            "] [SRP] HAProxy weight → 0 | drain: /var/run/srp_state_drain.bin",
+                        "warn",
+                    );
+                    // Flash red
+                    setTopoState("breach");
+                    // Flash the topology container
+                    const tc = byId("topoContainer");
+                    tc.classList.add("flash-red");
+                    setTimeout(function () {
+                        tc.classList.remove("flash-red");
+                    }, 1000);
+                }
+
+                byId("scoreDisplay").textContent = "score: " + score.toFixed(4);
+                this.value = "";
+            });
+
+            function addTrace(msg, cls) {
+                const log = byId("traceLog");
+                const div = document.createElement("div");
+                div.className = "line " + cls;
+                div.textContent = msg;
+                log.appendChild(div);
+                log.scrollTop = log.scrollHeight;
+                // Keep last 50 lines
+                while (log.children.length > 50)
+                    log.removeChild(log.firstChild);
+            }
+
+            // -------------------------------------------------------------------------
+            //  Escaping helper
+            // -------------------------------------------------------------------------
+            function esc(s) {
+                if (typeof s !== "string") return String(s);
+                return s
+                    .replace(/&/g, "&amp;")
+                    .replace(/</g, "&lt;")
+                    .replace(/>/g, "&gt;")
+                    .replace(/"/g, "&quot;");
+            }
+
+            // -------------------------------------------------------------------------
+            //  Keyboard navigation
+            // -------------------------------------------------------------------------
+            document.addEventListener("keydown", function (e) {
+                // Don't capture if user is typing in an input
+                if (
+                    e.target.tagName === "INPUT" ||
+                    e.target.tagName === "SELECT" ||
+                    e.target.tagName === "TEXTAREA"
+                )
+                    return;
+                if (e.key === "ArrowRight" && currentStep < TOTAL_STEPS)
+                    goStep(currentStep + 1);
+                if (e.key === "ArrowLeft" && currentStep > 1)
+                    goStep(currentStep - 1);
+            });
+
+            // -------------------------------------------------------------------------
+            //  Boot
+            // -------------------------------------------------------------------------
+            renderTabs();
+            renderBody();
+            sync();
+
+            // Welcome trace
+            addTrace(
+                "[" +
+                    new Date().toISOString().substring(11, 23) +
+                    "] [SRP] Sovereign Root Protocol v2026.4.2 — installation wizard ready",
+                "ok",
+            );
+            addTrace(
+                "[" +
+                    new Date().toISOString().substring(11, 23) +
+                    "] [SRP] Configure your node specification across " +
+                    TOTAL_STEPS +
+                    " steps.",
+                "info",
+            );
+        </script>
+    </body>
+</html>

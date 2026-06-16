@@ -1,0 +1,265 @@
+# =============================================================================
+#  SOVEREIGN ROOT PROTOCOL (SRP) — GLOBAL ANSIBLE DEPLOY PLAYBOOK
+# =============================================================================
+#  Target    : Linux (Debian 12 / Ubuntu 22.04+) with BPF-capable kernel
+#  Ansible   : v2.15+
+#  Execution : ansible-playbook -i inventory.ini srp_deploy_playbook.yml
+#
+#  Topology (from cluster/cluster_nodes.json):
+#    srp-node-us-east-01       10.0.1.10      priority 100
+#    srp-node-eu-west-01       10.0.2.10      priority  90
+#    srp-node-ap-southeast-01  10.0.3.10      priority  80
+#
+#  Lifecycle markers emitted by each task sequence:
+#    [SYSCTL HARDENING APPLIED]
+#    [BUILD TOOLCHAIN INSTALLED]
+#    [CERTIFICATE MATRIX DEPLOYED]
+#    [SYSTEMD SERVICE ACTIVE]
+#    [SRP NODE OPERATIONAL]
+# =============================================================================
+
+---
+- name: "SRP — Global Multi-Node Deployment"
+  hosts: all
+  become: yes
+  gather_facts: yes
+  any_errors_fatal: yes
+
+  vars:
+    srp_root: /opt/srp
+    cert_dir: /etc/srp/certs
+    sysctl_src: "{{ playbook_dir }}/../deploy/srp_hardening.conf"
+    sysctl_dst: /etc/sysctl.d/99-srp-hardening.conf
+    unit_src: "{{ playbook_dir }}/../deploy/srp_gateway.service"
+    unit_dst: /etc/systemd/system/srp-gateway.service
+    node_id: "{{ inventory_hostname }}"
+    node_short: "{{ node_id | regex_replace('^srp-node-', '') }}"
+
+  # -------------------------------------------------------------------
+  #  Pre-flight assertions
+  # -------------------------------------------------------------------
+  pre_tasks:
+    - name: "Assert Ansible v2.15+"
+      assert:
+        that: "ansible_version.full is version('2.15', '>=')"
+        msg: "Ansible 2.15+ required (current: {{ ansible_version.full }})"
+
+    - name: "Assert Linux with BPF-capable kernel"
+      assert:
+        that:
+          - ansible_system == "Linux"
+          - ansible_kernel is version("5.10", ">=")
+        msg: "BPF/XDP requires Linux >= 5.10 (current: {{ ansible_kernel }})"
+
+    - name: "Assert project source directory exists"
+      local_action:
+        module: stat
+        path: "{{ playbook_dir }}/.."
+      register: _srp_root_check
+      failed_when: not _srp_root_check.stat.exists
+
+    - name: "Register node label"
+      set_fact:
+        srp_node_id: "{{ node_id }}"
+        srp_region: "{{ 'us-east-1' if 'us-east' in node_id else ('eu-west-1' if 'eu-west' in node_id else 'ap-southeast-1') }}"
+
+  # ===================================================================
+  #  Task Sequence 1 — System Prep: Kernel Hardening
+  # ===================================================================
+  tasks:
+    - name: "[SYSCTL HARDENING APPLIED] Copy kernel hardening profile"
+      copy:
+        src: "{{ sysctl_src }}"
+        dest: "{{ sysctl_dst }}"
+        owner: root
+        group: root
+        mode: 0644
+      register: _sysctl_copy
+
+    - name: "Apply sysctl parameters"
+      command: sysctl --system
+      when: _sysctl_copy.changed
+      register: _sysctl_result
+      changed_when: "'Applying' in _sysctl_result.stdout"
+
+    - name: "Verify BPF JIT is enabled"
+      command: sysctl net.core.bpf_jit_enable
+      register: _bpf_jit
+      failed_when: "'1' not in _bpf_jit.stdout"
+      changed_when: false
+
+  # ===================================================================
+  #  Task Sequence 2 — Dependency Setup
+  # ===================================================================
+    - name: "[BUILD TOOLCHAIN INSTALLED] Install BPF development packages"
+      apt:
+        name:
+          - clang
+          - llvm
+          - libelf-dev
+          - bpfcc-tools
+          - linux-headers-{{ ansible_kernel }}
+          - python3-pip
+          - python3-venv
+          - build-essential
+          - curl
+          - ca-certificates
+        state: present
+        update_cache: yes
+      register: _apt_result
+
+    - name: "Create SRP virtual environment"
+      pip:
+        name:
+          - fastapi
+          - uvicorn[standard]
+          - httpx
+          - sentence-transformers
+          - numpy
+          - scapy
+          - cryptography
+          - aiofiles
+        state: present
+        virtualenv: "{{ srp_root }}/venv"
+        virtualenv_python: python3
+
+  # ===================================================================
+  #  Task Sequence 3 — Crypto Injection: mTLS Certificate Matrix
+  # ===================================================================
+    - name: "[CERTIFICATE MATRIX DEPLOYED] Create certificate directory"
+      file:
+        path: "{{ cert_dir }}"
+        state: directory
+        owner: root
+        group: root
+        mode: 0700
+
+    - name: "Check for existing CA certificate"
+      stat:
+        path: "{{ cert_dir }}/ca.crt"
+      register: _ca_stat
+
+    - name: "Generate certificate matrix with cluster/generate_certs.py"
+      local_action:
+        module: command
+        cmd: "python3 {{ playbook_dir }}/../cluster/generate_certs.py --output-dir {{ cert_dir }} --no-config-update"
+      when: not _ca_stat.stat.exists
+      register: _certs_generated
+      changed_when: _certs_generated.rc == 0
+
+    - name: "Copy node-specific certificate files to target"
+      copy:
+        src: "{{ playbook_dir }}/../cluster/certs/{{ item }}"
+        dest: "{{ cert_dir }}/{{ item }}"
+        owner: root
+        group: root
+        mode: 0600
+      loop:
+        - ca.crt
+        - "{{ node_short }}.crt"
+        - "{{ node_short }}.key"
+        - local.crt
+        - local.key
+      when: _certs_generated.changed or not _ca_stat.stat.exists
+
+    - name: "Verify certificate file integrity"
+      command: "openssl x509 -in {{ cert_dir }}/ca.crt -noout -subject"
+      register: _ca_verify
+      failed_when: _ca_verify.rc != 0
+      changed_when: false
+
+    - name: "Set strict permissions on certificate directory"
+      file:
+        path: "{{ cert_dir }}"
+        state: directory
+        owner: root
+        group: root
+        mode: 0700
+        recurse: yes
+
+  # ===================================================================
+  #  Task Sequence 4 — Service Launch
+  # ===================================================================
+    - name: "[SYSTEMD SERVICE ACTIVE] Copy SRP gateway systemd unit"
+      template:
+        src: "{{ unit_src }}"
+        dest: "{{ unit_dst }}"
+        owner: root
+        group: root
+        mode: 0644
+
+    - name: "Create SRP project root"
+      file:
+        path: "{{ srp_root }}"
+        state: directory
+        owner: root
+        group: root
+        mode: 0755
+
+    - name: "Synchronise project source files to target"
+      synchronize:
+        src: "{{ playbook_dir }}/../"
+        dest: "{{ srp_root }}/"
+        rsync_opts:
+          - "--exclude=__pycache__"
+          - "--exclude=.git"
+          - "--exclude=venv"
+          - "--exclude=node_modules"
+        delete: no
+      when: ansible_connection != "local"
+
+    - name: "Perform local copy if connection is local"
+      copy:
+        src: "{{ playbook_dir }}/../"
+        dest: "{{ srp_root }}/"
+        owner: root
+        group: root
+        mode: preserve
+      when: ansible_connection == "local"
+
+    - name: "Reload systemd and enable SRP gateway service"
+      systemd:
+        daemon_reload: yes
+        name: srp-gateway
+        enabled: yes
+        state: started
+      register: _service_start
+
+    - name: "Wait for proxy health endpoint"
+      uri:
+        url: "http://127.0.0.1:9000/health"
+        method: GET
+        status_code: 200
+        timeout: 30
+      register: _proxy_health
+      retries: 10
+      delay: 3
+      until: _proxy_health.status == 200
+
+    - name: "Wait for loader health endpoint"
+      uri:
+        url: "http://127.0.0.1:9001/health"
+        method: GET
+        status_code: 200
+        timeout: 30
+      register: _loader_health
+      retries: 10
+      delay: 3
+      until: _loader_health.status == 200
+
+  # ===================================================================
+  #  Post-deployment verification
+  # ===================================================================
+    - name: "[SRP NODE OPERATIONAL] Validate eBPF loader map size"
+      uri:
+        url: "http://127.0.0.1:9001/api/v1/srp/map"
+        method: GET
+        status_code: 200
+      register: _loader_map
+
+    - name: "Validate telemetry logger initialised"
+      uri:
+        url: "http://127.0.0.1:9000/health"
+        method: GET
+      register: _proxy_status
+      failed_when: "'srp_proxy_active' not in (_proxy_status.json | default({})).get('status', '')"

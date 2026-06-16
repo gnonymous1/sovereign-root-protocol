@@ -1,0 +1,10 @@
+da9d07c5d9b819cae25abc095b91c4fa  ap-southeast-01.crt
+b14321c91e54a4e3a02948f5caf876e6  ap-southeast-01.key
+bba5e288b45a518b91cb120f8fbef176  ca.crt
+e7c7e496874c6445f0a2e36be03aae47  ca.key
+75090a94bc6ce4897bb8a30bda71b82d  eu-west-01.crt
+ea20ea076f2b8cae954cb12a4f85b437  eu-west-01.key
+760f8165d6d44b95e9c4b0f25ef6e317  local.crt
+e89cc6e1959f842cfbeb38703fb318ed  local.key
+3dac732d9bddf62261f4df3ea429a224  us-east-01.crt
+4b0c24af393754f89b68cfb414094536  us-east-01.key

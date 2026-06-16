@@ -1,0 +1,1435 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+        <title>SRP — Traffic Simulator</title>
+        <style>
+            *,
+            *::before,
+            *::after {
+                box-sizing: border-box;
+                margin: 0;
+                padding: 0;
+            }
+            html,
+            body {
+                height: 100%;
+                background: #0b0e14;
+                color: #c9d1d9;
+                font-family:
+                    "SF Mono", "Cascadia Code", "Fira Code", "Consolas",
+                    monospace;
+                font-size: 13px;
+                line-height: 1.5;
+                overflow: hidden;
+            }
+            ::-webkit-scrollbar {
+                width: 5px;
+                height: 5px;
+            }
+            ::-webkit-scrollbar-track {
+                background: #161b22;
+            }
+            ::-webkit-scrollbar-thumb {
+                background: #30363d;
+                border-radius: 3px;
+            }
+            ::-webkit-scrollbar-thumb:hover {
+                background: #484f58;
+            }
+            .app {
+                display: grid;
+                grid-template-columns: 1fr 320px;
+                grid-template-rows: auto 1fr 200px;
+                height: 100vh;
+                gap: 0;
+            }
+            .hdr {
+                grid-column: 1/-1;
+                background: #161b22;
+                border-bottom: 1px solid #21262d;
+                padding: 6px 16px;
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+            }
+            .hdr h1 {
+                font-size: 14px;
+                font-weight: 600;
+                color: #e6edf3;
+                letter-spacing: 0.5px;
+            }
+            .hdr .sub {
+                font-size: 11px;
+                color: #8b949e;
+                margin-left: 12px;
+            }
+            .hdr .badge {
+                background: #1f6feb22;
+                color: #58a6ff;
+                padding: 2px 10px;
+                border-radius: 4px;
+                font-size: 11px;
+                border: 1px solid #1f6feb44;
+            }
+            #topoPane {
+                overflow: hidden;
+                background: #0d1117;
+                position: relative;
+                border-right: 1px solid #21262d;
+            }
+            #sidePane {
+                overflow-y: auto;
+                background: #0d1117;
+                display: flex;
+                flex-direction: column;
+            }
+            #logPane {
+                grid-column: 1/-1;
+                background: #0d1117;
+                border-top: 1px solid #21262d;
+                display: flex;
+                flex-direction: column;
+                overflow: hidden;
+            }
+            #topoCanvas {
+                width: 100%;
+                height: 100%;
+            }
+            .node-box rect {
+                transition:
+                    fill 0.5s,
+                    stroke 0.5s;
+            }
+            .node-box .lbl {
+                font-size: 12px;
+                font-weight: 600;
+                fill: #e6edf3;
+                text-anchor: middle;
+                pointer-events: none;
+            }
+            .node-box .sub {
+                font-size: 10px;
+                fill: #8b949e;
+                text-anchor: middle;
+                pointer-events: none;
+            }
+            .node-box .stat {
+                font-size: 10px;
+                fill: #58a6ff;
+                text-anchor: middle;
+                pointer-events: none;
+            }
+            .state-idle rect {
+                fill: #21262d;
+                stroke: #30363d;
+            }
+            .state-busy rect {
+                fill: #d2992222;
+                stroke: #d29922;
+            }
+            .state-ok rect {
+                fill: #3fb95022;
+                stroke: #3fb950;
+            }
+            .state-drop rect {
+                fill: #f8514922;
+                stroke: #f85149;
+            }
+            .state-idle .lbl,
+            .state-idle .sub {
+                opacity: 0.6;
+            }
+            .state-ok .lbl {
+                fill: #7ee787;
+            }
+            .state-ok .sub {
+                fill: #3fb950;
+            }
+            .state-busy .lbl {
+                fill: #d29922;
+            }
+            .state-busy .sub {
+                fill: #d29922;
+            }
+            .state-drop .lbl {
+                fill: #f85149;
+            }
+            .state-drop .sub {
+                fill: #f85149;
+            }
+            .conn {
+                fill: none;
+                stroke: #30363d;
+                stroke-width: 2;
+                transition: stroke 0.4s;
+            }
+            .conn.active {
+                stroke: #58a6ff;
+                stroke-width: 2.5;
+                stroke-dasharray: 8 4;
+                animation: dash 0.8s linear infinite;
+            }
+            .conn.breach {
+                stroke: #f85149;
+                stroke-width: 3;
+            }
+            @keyframes dash {
+                to {
+                    stroke-dashoffset: -24;
+                }
+            }
+            .pkt-dot {
+                fill: #58a6ff;
+                opacity: 0;
+                transition: opacity 0.1s;
+            }
+            .pkt-dot.fly {
+                opacity: 1;
+                animation: fly 1.2s ease-in-out forwards;
+            }
+            @keyframes fly {
+                0% {
+                    opacity: 1;
+                }
+                90% {
+                    opacity: 1;
+                }
+                100% {
+                    opacity: 0;
+                }
+            }
+            .pkt-dot.drop {
+                fill: #f85149;
+                animation: fly-drop 0.8s ease-in forwards;
+            }
+            @keyframes fly-drop {
+                0% {
+                    opacity: 1;
+                    r: 4;
+                }
+                50% {
+                    opacity: 1;
+                    r: 6;
+                }
+                100% {
+                    opacity: 0;
+                    r: 2;
+                }
+            }
+            .panel {
+                border-bottom: 1px solid #21262d;
+                padding: 10px 12px;
+                flex-shrink: 0;
+            }
+            .panel:last-child {
+                border-bottom: none;
+                flex: 1;
+                overflow-y: auto;
+            }
+            .panel h3 {
+                font-size: 11px;
+                color: #8b949e;
+                text-transform: uppercase;
+                letter-spacing: 0.8px;
+                margin-bottom: 6px;
+            }
+            .metric-row {
+                display: flex;
+                justify-content: space-between;
+                padding: 2px 0;
+                font-size: 12px;
+            }
+            .metric-row .val {
+                font-weight: 600;
+                color: #e6edf3;
+            }
+            .metric-row .val.green {
+                color: #7ee787;
+            }
+            .metric-row .val.yellow {
+                color: #d29922;
+            }
+            .metric-row .val.red {
+                color: #f85149;
+            }
+            #ledgerPanel {
+                overflow-y: auto;
+                max-height: 320px;
+            }
+            .ledger-entry {
+                padding: 3px 0;
+                border-bottom: 1px solid #161b22;
+                font-size: 11px;
+                line-height: 1.4;
+            }
+            .ledger-entry .idx {
+                color: #8b949e;
+                margin-right: 6px;
+            }
+            .ledger-entry .seal {
+                color: #bc8cff;
+                font-size: 10px;
+                word-break: break-all;
+            }
+            .ledger-entry .act {
+                display: inline-block;
+                padding: 0 4px;
+                border-radius: 2px;
+                font-size: 10px;
+                font-weight: 600;
+            }
+            .ledger-entry .act.pass {
+                background: #3fb95022;
+                color: #7ee787;
+            }
+            .ledger-entry .act.fail {
+                background: #f8514922;
+                color: #f85149;
+            }
+            #logContent {
+                flex: 1;
+                overflow-y: auto;
+                padding: 8px 16px;
+                font-size: 12px;
+                line-height: 1.5;
+            }
+            #logContent .l {
+                white-space: pre-wrap;
+                word-break: break-all;
+                min-height: 1.2em;
+            }
+            #logContent .l.i {
+                color: #8b949e;
+            }
+            #logContent .l.ok {
+                color: #7ee787;
+            }
+            #logContent .l.w {
+                color: #d29922;
+            }
+            #logContent .l.e {
+                color: #f85149;
+            }
+            #logContent .l.h {
+                color: #e6edf3;
+                font-weight: 600;
+            }
+            #logContent .l.d {
+                color: #484f58;
+            }
+            #logContent .l.s {
+                color: #bc8cff;
+            }
+            #logContent .l.p {
+                color: #58a6ff;
+            }
+            .ctrl {
+                display: flex;
+                gap: 6px;
+                align-items: center;
+                padding: 6px 16px;
+                background: #161b22;
+                border-top: 1px solid #21262d;
+                flex-wrap: wrap;
+                flex-shrink: 0;
+            }
+            .ctrl .btn {
+                background: #21262d;
+                border: 1px solid #30363d;
+                color: #c9d1d9;
+                padding: 4px 12px;
+                border-radius: 5px;
+                font-size: 11px;
+                font-family: inherit;
+                cursor: pointer;
+                transition: 0.15s;
+            }
+            .ctrl .btn:hover {
+                background: #30363d;
+                border-color: #484f58;
+            }
+            .ctrl .btn.p {
+                background: #1f6feb;
+                border-color: #1f6feb;
+                color: #fff;
+            }
+            .ctrl .btn.p:hover {
+                background: #388bfd;
+            }
+            .ctrl .btn.d {
+                background: #da3633;
+                border-color: #da3633;
+                color: #fff;
+            }
+            .ctrl .btn.d:hover {
+                background: #f85149;
+            }
+            .ctrl .btn:disabled {
+                opacity: 0.4;
+                cursor: not-allowed;
+            }
+            .ctrl label {
+                font-size: 11px;
+                color: #8b949e;
+                margin-left: 8px;
+            }
+            .ctrl input[type="range"] {
+                width: 60px;
+                height: 4px;
+                accent-color: #58a6ff;
+                background: #21262d;
+                border: none;
+                border-radius: 2px;
+            }
+            .ctrl input[type="range"]::-webkit-slider-thumb {
+                -webkit-appearance: none;
+                width: 12px;
+                height: 12px;
+                border-radius: 50%;
+                background: #58a6ff;
+                cursor: pointer;
+            }
+            .ctrl .sep {
+                width: 1px;
+                height: 20px;
+                background: #21262d;
+                margin: 0 4px;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="app">
+            <div class="hdr">
+                <div>
+                    <h1>
+                        Sovereign Root Protocol
+                        <span class="sub">Full System Simulator</span>
+                    </h1>
+                </div>
+                <div>
+                    <span class="badge" id="statusBadge">Standing By</span>
+                </div>
+            </div>
+            <div id="topoPane">
+                <svg
+                    id="topoCanvas"
+                    viewBox="0 0 700 340"
+                    xmlns="http://www.w3.org/2000/svg"
+                >
+                    <defs>
+                        <marker
+                            id="ag"
+                            viewBox="0 0 10 6"
+                            refX="10"
+                            refY="3"
+                            markerWidth="8"
+                            markerHeight="5"
+                            orient="auto"
+                        >
+                            <path d="M0,0 L10,3 L0,6" fill="#30363d" />
+                        </marker>
+                        <marker
+                            id="ab"
+                            viewBox="0 0 10 6"
+                            refX="10"
+                            refY="3"
+                            markerWidth="8"
+                            markerHeight="5"
+                            orient="auto"
+                        >
+                            <path d="M0,0 L10,3 L0,6" fill="#58a6ff" />
+                        </marker>
+                        <marker
+                            id="ar"
+                            viewBox="0 0 10 6"
+                            refX="10"
+                            refY="3"
+                            markerWidth="8"
+                            markerHeight="5"
+                            orient="auto"
+                        >
+                            <path d="M0,0 L10,3 L0,6" fill="#f85149" />
+                        </marker>
+                    </defs>
+                    <line
+                        class="conn"
+                        id="c12"
+                        x1="180"
+                        y1="140"
+                        x2="280"
+                        y2="140"
+                        marker-end="url(#ag)"
+                    />
+                    <line
+                        class="conn"
+                        id="c23"
+                        x1="420"
+                        y1="140"
+                        x2="520"
+                        y2="140"
+                        marker-end="url(#ag)"
+                    />
+                    <line
+                        class="conn"
+                        id="c31"
+                        x1="350"
+                        y1="200"
+                        x2="350"
+                        y2="250"
+                        marker-end="url(#ag)"
+                    />
+                    <g
+                        class="node-box state-idle"
+                        id="n1"
+                        transform="translate(30,80)"
+                    >
+                        <rect
+                            x="0"
+                            y="0"
+                            width="200"
+                            height="110"
+                            rx="8"
+                            stroke-width="2"
+                        />
+                        <text class="lbl" x="100" y="28">
+                            Peripheral Firewall
+                        </text>
+                        <text class="lbl" x="100" y="45">Interceptor</text>
+                        <text class="sub" x="100" y="65">
+                            eBPF/XDP sovereign_approval
+                        </text>
+                        <text class="sub" x="100" y="80">
+                            port 9001 (control plane)
+                        </text>
+                        <text class="stat" id="n1stat" x="100" y="100">
+                            0 inspected
+                        </text>
+                        <circle
+                            class="pkt-dot"
+                            id="dot12"
+                            r="4"
+                            cx="230"
+                            cy="140"
+                        />
+                    </g>
+                    <g
+                        class="node-box state-idle"
+                        id="n2"
+                        transform="translate(290,80)"
+                    >
+                        <rect
+                            x="0"
+                            y="0"
+                            width="180"
+                            height="110"
+                            rx="8"
+                            stroke-width="2"
+                        />
+                        <text class="lbl" x="90" y="28">
+                            Core API Validation
+                        </text>
+                        <text class="lbl" x="90" y="45">Proxy</text>
+                        <text class="sub" x="90" y="65">
+                            all-MiniLM-L6-v2 embeddings
+                        </text>
+                        <text class="sub" x="90" y="80">
+                            port 9000 (ingress)
+                        </text>
+                        <text class="stat" id="n2stat" x="90" y="100">
+                            score: --
+                        </text>
+                        <circle
+                            class="pkt-dot"
+                            id="dot23"
+                            r="4"
+                            cx="470"
+                            cy="140"
+                        />
+                    </g>
+                    <g
+                        class="node-box state-idle"
+                        id="n3"
+                        transform="translate(530,80)"
+                    >
+                        <rect
+                            x="0"
+                            y="0"
+                            width="140"
+                            height="110"
+                            rx="8"
+                            stroke-width="2"
+                        />
+                        <text class="lbl" x="70" y="28">Immutable Ledger</text>
+                        <text class="lbl" x="70" y="45">Registry</text>
+                        <text class="sub" x="70" y="65">
+                            SHA-256 hash chain
+                        </text>
+                        <text class="sub" x="70" y="80">integrity seals</text>
+                        <text class="stat" id="n3stat" x="70" y="100">
+                            seals: 0
+                        </text>
+                    </g>
+                    <g transform="translate(10,280)">
+                        <rect
+                            x="0"
+                            y="0"
+                            width="12"
+                            height="12"
+                            rx="3"
+                            fill="#21262d"
+                            stroke="#30363d"
+                            stroke-width="1.5"
+                        />
+                        <text x="17" y="10" fill="#8b949e" font-size="9">
+                            Idle
+                        </text>
+                        <rect
+                            x="60"
+                            y="0"
+                            width="12"
+                            height="12"
+                            rx="3"
+                            fill="#d2992222"
+                            stroke="#d29922"
+                            stroke-width="1.5"
+                        />
+                        <text x="77" y="10" fill="#8b949e" font-size="9">
+                            Processing
+                        </text>
+                        <rect
+                            x="155"
+                            y="0"
+                            width="12"
+                            height="12"
+                            rx="3"
+                            fill="#3fb95022"
+                            stroke="#3fb950"
+                            stroke-width="1.5"
+                        />
+                        <text x="172" y="10" fill="#8b949e" font-size="9">
+                            Operational
+                        </text>
+                        <rect
+                            x="255"
+                            y="0"
+                            width="12"
+                            height="12"
+                            rx="3"
+                            fill="#f8514922"
+                            stroke="#f85149"
+                            stroke-width="1.5"
+                        />
+                        <text x="272" y="10" fill="#8b949e" font-size="9">
+                            Quarantine
+                        </text>
+                    </g>
+                </svg>
+            </div>
+            <div id="sidePane">
+                <div class="panel">
+                    <h3>Traffic Metrics</h3>
+                    <div class="metric-row">
+                        <span>Inspected</span
+                        ><span class="val green" id="mInspected">0</span>
+                    </div>
+                    <div class="metric-row">
+                        <span>Approved</span
+                        ><span class="val green" id="mApproved">0</span>
+                    </div>
+                    <div class="metric-row">
+                        <span>Terminated</span
+                        ><span class="val yellow" id="mTerminated">0</span>
+                    </div>
+                    <div class="metric-row">
+                        <span>Dropped (XDP_DROP)</span
+                        ><span class="val red" id="mDropped">0</span>
+                    </div>
+                    <div class="metric-row">
+                        <span>Drop Ratio</span
+                        ><span class="val" id="mDropRatio">0.0%</span>
+                    </div>
+                    <div class="metric-row">
+                        <span>Peers (mesh)</span
+                        ><span class="val" id="mPeers">0 / 3</span>
+                    </div>
+                </div>
+                <div class="panel">
+                    <h3>Gatekeeper Map</h3>
+                    <div
+                        id="gatekeeperPanel"
+                        style="
+                            max-height: 140px;
+                            overflow-y: auto;
+                            font-size: 11px;
+                            line-height: 1.6;
+                        "
+                    ></div>
+                </div>
+                <div class="panel" id="ledgerPanel">
+                    <h3>Ledger Chain</h3>
+                    <div id="ledgerContent"></div>
+                </div>
+                <div class="panel" style="flex: 1; overflow-y: auto">
+                    <h3>Certificates</h3>
+                    <div
+                        style="
+                            font-size: 10px;
+                            line-height: 1.5;
+                            color: #8b949e;
+                        "
+                    >
+                        <div
+                            style="
+                                background: #161b22;
+                                border-radius: 4px;
+                                padding: 6px;
+                                margin-bottom: 4px;
+                            "
+                        >
+                            <div style="color: #7ee787; font-weight: 600">
+                                CA &middot; ECDSA P-256
+                            </div>
+                            <div style="color: #484f58">
+                                Subject: CN=SRP Root CA
+                            </div>
+                            <div style="color: #484f58">
+                                Valid: 2026&ndash;2036
+                            </div>
+                            <div style="color: #bc8cff; font-size: 9px">
+                                SHA-256: a7f39e1c...
+                            </div>
+                        </div>
+                        <div
+                            style="
+                                background: #161b22;
+                                border-radius: 4px;
+                                padding: 6px;
+                                margin-bottom: 4px;
+                            "
+                        >
+                            <div style="color: #58a6ff; font-weight: 600">
+                                us-east-01 &middot; ECDSA P-256
+                            </div>
+                            <div style="color: #484f58">
+                                SAN: DNS:srp-node-us-east-01
+                            </div>
+                            <div style="color: #484f58">
+                                Status:
+                                <span style="color: #7ee787"
+                                    >Active (0x01)</span
+                                >
+                            </div>
+                        </div>
+                        <div
+                            style="
+                                background: #161b22;
+                                border-radius: 4px;
+                                padding: 6px;
+                                margin-bottom: 4px;
+                            "
+                        >
+                            <div style="color: #58a6ff; font-weight: 600">
+                                eu-west-01 &middot; ECDSA P-256
+                            </div>
+                            <div style="color: #484f58">
+                                SAN: DNS:srp-node-eu-west-01
+                            </div>
+                            <div style="color: #484f58">
+                                Status:
+                                <span style="color: #7ee787"
+                                    >Active (0x01)</span
+                                >
+                            </div>
+                        </div>
+                        <div
+                            style="
+                                background: #161b22;
+                                border-radius: 4px;
+                                padding: 6px;
+                            "
+                        >
+                            <div style="color: #58a6ff; font-weight: 600">
+                                ap-southeast-01 &middot; ECDSA P-256
+                            </div>
+                            <div style="color: #484f58">
+                                SAN: DNS:srp-node-ap-southeast-01
+                            </div>
+                            <div style="color: #484f58">
+                                Status:
+                                <span style="color: #7ee787"
+                                    >Active (0x01)</span
+                                >
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div id="logPane">
+                <div class="ctrl">
+                    <button
+                        class="btn p"
+                        id="btnSend"
+                        onclick="sim.sendTraffic()"
+                    >
+                        Send Traffic
+                    </button>
+                    <button class="btn" id="btnBurst" onclick="sim.sendBurst()">
+                        Burst (10)
+                    </button>
+                    <span class="sep"></span>
+                    <button
+                        class="btn d"
+                        id="btnBreach"
+                        onclick="sim.toggleBreach()"
+                    >
+                        Toggle Breach
+                    </button>
+                    <button
+                        class="btn"
+                        id="btnAddBad"
+                        onclick="sim.addMaliciousIP()"
+                    >
+                        Add Malicious IP
+                    </button>
+                    <span class="sep"></span>
+                    <button class="btn" onclick="sim.reset()">Reset</button>
+                    <span class="sep"></span>
+                    <label>Rate</label>
+                    <input
+                        type="range"
+                        id="rateSlider"
+                        min="100"
+                        max="2000"
+                        value="600"
+                        step="100"
+                    />
+                    <label id="rateLabel">600ms</label>
+                    <label style="margin-left: 12px"
+                        ><input type="checkbox" id="autoSend" checked />
+                        Auto</label
+                    >
+                </div>
+                <div id="logContent"></div>
+            </div>
+        </div>
+        <script>
+            // =========================================================================
+            //  SRP Full System Simulator Engine
+            // =========================================================================
+            const SHA256 = async (msg) => {
+                const enc = new TextEncoder().encode(msg);
+                const buf = await crypto.subtle.digest("SHA-256", enc);
+                return Array.from(new Uint8Array(buf))
+                    .map((b) => b.toString(16).padStart(2, "0"))
+                    .join("");
+            };
+
+            class Ledger {
+                constructor() {
+                    this.seals = [
+                        {
+                            idx: 0,
+                            hash: "0".repeat(64),
+                            label: "Genesis",
+                            action: "-",
+                            ip: "-",
+                            score: 0,
+                        },
+                    ];
+                }
+                async seal(ip, action, score) {
+                    const prev = this.seals[this.seals.length - 1].hash;
+                    const data =
+                        JSON.stringify({ ip, action, score, ts: Date.now() }, [
+                            "ip",
+                            "action",
+                            "score",
+                            "ts",
+                        ]) +
+                        ":" +
+                        prev;
+                    const hash = await SHA256(data);
+                    const entry = {
+                        idx: this.seals.length,
+                        hash,
+                        label: "Seal " + this.seals.length,
+                        action,
+                        ip,
+                        score,
+                        prev: prev.substr(0, 16) + "...",
+                    };
+                    this.seals.push(entry);
+                    return entry;
+                }
+                verify() {
+                    for (let i = 1; i < this.seals.length; i++) {
+                        if (
+                            !this.seals[i].hash ||
+                            this.seals[i].hash.length !== 64
+                        )
+                            return false;
+                    }
+                    return true;
+                }
+            }
+
+            class SimEngine {
+                constructor() {
+                    this.ledger = new Ledger();
+                    this.metrics = {
+                        inspected: 0,
+                        approved: 0,
+                        terminated: 0,
+                        dropped: 0,
+                    };
+                    this.gatekeeper = {};
+                    this.running = true;
+                    this.breach = false;
+                    this.autoTimer = null;
+                    this.peerConnected = false;
+                    this._n1busy = false;
+                    this._pktCounter = 0;
+                    this._badIPs = [
+                        "10.88.0.55",
+                        "10.88.0.99",
+                        "10.88.1.200",
+                        "10.88.2.15",
+                        "10.88.3.77",
+                    ];
+                    this._knownIPs = [
+                        "10.88.0.10",
+                        "10.88.0.11",
+                        "10.88.0.12",
+                        "10.88.0.20",
+                        "10.88.0.21",
+                        "10.88.1.10",
+                        "10.88.1.11",
+                        "10.88.2.10",
+                        "10.88.2.20",
+                        "10.88.2.21",
+                        "10.88.3.10",
+                        "10.88.3.11",
+                        "10.88.4.10",
+                    ];
+                    this._sampleIntents = [
+                        "a7f39e1c8b4d17455e256d7abcd7ac245667238e",
+                        "b2d411f3c5e6a7b8c9d0e1f203141526",
+                        "e7c245b1f9a1c3d4e5f6789012345678",
+                        "f9a1c3d4e5f67890123456789abcdef0",
+                        "0b3e7a8f1a2b3c4d5e6f708192a3b4c5",
+                        "c5d6e7f8a1b2c3d4e5f6789012345678",
+                        "d4f28b7ac9d0e1f2031415263748596a",
+                        "1e2fc9d0a1b2c3d4e5f6789012345678",
+                        "6a7b3c4d5e6f708192a3b4c5d6e7f809",
+                        "9e0f1a2b3c4d5e6f708192a3b4c5d6e7",
+                    ];
+                    this.initGatekeeper();
+                    this.startAuto();
+                    this.log("SRP Simulation Engine initialized", "h");
+                    this.log(
+                        "SHA-256 ledger active | 3-node mesh topology",
+                        "i",
+                    );
+                    this.log("Click [Send Traffic] or enable Auto mode", "i");
+                    this.updateUI();
+                }
+
+                initGatekeeper() {
+                    for (const ip of this._knownIPs) this.gatekeeper[ip] = 0x01;
+                    for (const ip of this._badIPs) this.gatekeeper[ip] = 0xff;
+                    this.renderGatekeeper();
+                }
+
+                randIP() {
+                    const pool = this._knownIPs.concat(this._badIPs);
+                    return pool[Math.floor(Math.random() * pool.length)];
+                }
+
+                randIntent() {
+                    return this._sampleIntents[
+                        Math.floor(Math.random() * this._sampleIntents.length)
+                    ];
+                }
+
+                async processPacket() {
+                    if (!this.running || this._n1busy) return;
+                    this._n1busy = true;
+                    this._pktCounter++;
+                    const srcIP = this.randIP();
+                    const intent = this.randIntent();
+                    const isMalicious =
+                        this._badIPs.includes(srcIP) || this.breach;
+
+                    // Phase 1: XDP Ingress (eBPF filter)
+                    this.setNodeState("n1", "busy");
+                    this.setConnState("c12", "active");
+                    this.flyDot("dot12");
+                    this.log(
+                        "[AL-MIR] XDP ingress: src=" +
+                            srcIP +
+                            " dst=api.openai.com:443",
+                        "i",
+                    );
+                    await sleep(200);
+
+                    const gkState = this.gatekeeper[srcIP] || 0x01;
+                    if (gkState === 0xff) {
+                        this.metrics.dropped++;
+                        this.metrics.inspected++;
+                        this.setNodeState("n1", "drop");
+                        this.log(
+                            "  sovereign_approval lookup: 0xFF (QUARANTINE)",
+                            "e",
+                        );
+                        this.log(
+                            "  VERDICT: XDP_DROP -- packet discarded",
+                            "e",
+                        );
+                        this.setNodeState("n1", "ok");
+                        this._n1busy = false;
+                        this.updateUI();
+                        return;
+                    }
+
+                    this.log(
+                        "  sovereign_approval lookup: 0x01 (ACTIVE) -- pass",
+                        "ok",
+                    );
+                    await sleep(150);
+
+                    // Phase 2: Proxy validation
+                    this.setNodeState("n1", "ok");
+                    this.setNodeState("n2", "busy");
+                    this.setConnState("c23", "active");
+                    this.flyDot("dot23");
+                    this.log("[AL-MIZAN] Proxy inhale: src=" + srcIP, "i");
+                    await sleep(250);
+
+                    const alignmentScore = isMalicious
+                        ? +(Math.random() * 0.35).toFixed(3)
+                        : +(0.55 + Math.random() * 0.45).toFixed(3);
+                    const threshold = 0.6;
+                    const action =
+                        alignmentScore >= threshold ? "APPROVED" : "TERMINATED";
+
+                    this.log("  embedding inference: all-MiniLM-L6-v2", "i");
+                    this.log(
+                        "  cosine similarity: " +
+                            alignmentScore.toFixed(3) +
+                            " (threshold: " +
+                            threshold +
+                            ")",
+                        alignmentScore >= threshold ? "ok" : "w",
+                    );
+                    this.log(
+                        "  intent_hash: " + intent.substr(0, 16) + "...",
+                        "d",
+                    );
+                    this.log(
+                        "  VERDICT: " + action,
+                        action === "APPROVED" ? "ok" : "e",
+                    );
+
+                    if (action === "APPROVED") this.metrics.approved++;
+                    else this.metrics.terminated++;
+                    this.metrics.inspected++;
+                    await sleep(150);
+
+                    // Phase 3: Ledger seal
+                    this.setNodeState("n2", "ok");
+                    this.setNodeState("n3", "busy");
+                    this.setConnState("c31", "active");
+                    this.log(
+                        "[AL-MIZAN] Forwarding to ledger for sealing...",
+                        "i",
+                    );
+                    await sleep(200);
+
+                    const seal = await this.ledger.seal(
+                        srcIP,
+                        action,
+                        alignmentScore,
+                    );
+                    this.renderLedger(seal);
+                    this.log(
+                        "[LEDGER] Seal " +
+                            seal.idx +
+                            ": " +
+                            seal.hash.substr(0, 16) +
+                            "...  [" +
+                            action +
+                            "]",
+                        "s",
+                    );
+                    this.setNodeState("n3", "ok");
+
+                    this.log(
+                        "  processing_latency_ms: " +
+                            (Math.random() * 0.8 + 0.2).toFixed(1),
+                        "d",
+                    );
+                    this.log(
+                        "  packet_" +
+                            this._pktCounter +
+                            " complete -- chain integrity: " +
+                            (this.ledger.verify() ? "PASS" : "FAIL"),
+                        this.ledger.verify() ? "ok" : "e",
+                    );
+
+                    if (this.breach && Math.random() < 0.3) {
+                        const badIP =
+                            this._knownIPs[
+                                Math.floor(
+                                    Math.random() * this._knownIPs.length,
+                                )
+                            ];
+                        this.gatekeeper[badIP] = 0xff;
+                        this.log(
+                            "[AL-QAHR] Gatekeeper 0xFF set for " +
+                                badIP +
+                                " (breach propagation)",
+                            "e",
+                        );
+                        this.renderGatekeeper();
+                    }
+
+                    this.setNodeState("n2", "ok");
+                    this.setNodeState("n3", "ok");
+                    this.setConnState("c12", "");
+                    this.setConnState("c23", "");
+                    this.setConnState("c31", "");
+                    this._n1busy = false;
+                    this.updateUI();
+
+                    if (this.breach && Math.random() < 0.15) {
+                        this.log(
+                            "[SRE ALERT] ANOMALY EVENT CAPTURED -- initiating incident response",
+                            "e",
+                        );
+                        this.log(
+                            "  Ledger mismatch at seal " +
+                                Math.floor(
+                                    Math.random() * this.ledger.seals.length +
+                                        1,
+                                ),
+                            "e",
+                        );
+                        this.log(
+                            "  Compromised IPs flushed to 0xFF -- trust block reloaded",
+                            "e",
+                        );
+                    }
+                }
+
+                async sendTraffic() {
+                    await this.processPacket();
+                }
+
+                async sendBurst() {
+                    const btn = document.getElementById("btnBurst");
+                    btn.disabled = true;
+                    for (let i = 0; i < 10; i++) {
+                        if (!this.running) break;
+                        await this.processPacket();
+                        await sleep(100);
+                    }
+                    btn.disabled = false;
+                }
+
+                toggleBreach() {
+                    this.breach = !this.breach;
+                    const badge = document.getElementById("statusBadge");
+                    document.getElementById("btnBreach").textContent = this
+                        .breach
+                        ? "End Breach"
+                        : "Toggle Breach";
+                    badge.textContent = this.breach
+                        ? "! BREACH ACTIVE"
+                        : "Standing By";
+                    badge.style.color = this.breach ? "#f85149" : "#58a6ff";
+                    badge.style.borderColor = this.breach
+                        ? "#f8514944"
+                        : "#1f6feb44";
+                    badge.style.background = this.breach
+                        ? "#f8514922"
+                        : "#1f6feb22";
+
+                    if (this.breach) {
+                        this.log("", "d");
+                        this.log(
+                            "+-----------------------------------------------+",
+                            "e",
+                        );
+                        this.log(
+                            "|  [SRE ALERT] BREACH MODE ENGAGED              |",
+                            "e",
+                        );
+                        this.log(
+                            "|  Simulated policy violation -- 0xFF quarantine |",
+                            "e",
+                        );
+                        this.log(
+                            "+-----------------------------------------------+",
+                            "e",
+                        );
+                        this.log(
+                            "  Random IPs flagged as QUARANTINE during processing",
+                            "w",
+                        );
+                        this.setNodeState("n1", "drop");
+                        this.setNodeState("n2", "drop");
+                        this.setNodeState("n3", "drop");
+                        this.setConnState("c12", "breach");
+                        this.setConnState("c23", "breach");
+                        this.setConnState("c31", "breach");
+                    } else {
+                        this.log(
+                            "Breach mode deactivated -- systems recovering",
+                            "ok",
+                        );
+                        this.setNodeState("n1", "ok");
+                        this.setNodeState("n2", "ok");
+                        this.setNodeState("n3", "ok");
+                        this.setConnState("c12", "");
+                        this.setConnState("c23", "");
+                        this.setConnState("c31", "");
+                    }
+                }
+
+                addMaliciousIP() {
+                    const ip =
+                        this._knownIPs[
+                            Math.floor(Math.random() * this._knownIPs.length)
+                        ];
+                    this.gatekeeper[ip] = 0xff;
+                    if (!this._badIPs.includes(ip)) this._badIPs.push(ip);
+                    this.log(
+                        "[CONTROL] Manual quarantine: " + ip + " -> 0xFF",
+                        "e",
+                    );
+                    this.renderGatekeeper();
+                    this.updateUI();
+                }
+
+                reset() {
+                    this.running = false;
+                    if (this.autoTimer) {
+                        clearInterval(this.autoTimer);
+                        this.autoTimer = null;
+                    }
+                    this.ledger = new Ledger();
+                    this.metrics = {
+                        inspected: 0,
+                        approved: 0,
+                        terminated: 0,
+                        dropped: 0,
+                    };
+                    this.gatekeeper = {};
+                    this._badIPs = [
+                        "10.88.0.55",
+                        "10.88.0.99",
+                        "10.88.1.200",
+                        "10.88.2.15",
+                        "10.88.3.77",
+                    ];
+                    this._n1busy = false;
+                    this.breach = false;
+                    this._pktCounter = 0;
+                    this.peerConnected = false;
+                    document.getElementById("logContent").innerHTML = "";
+                    document.getElementById("ledgerContent").innerHTML = "";
+                    document.getElementById("btnBreach").textContent =
+                        "Toggle Breach";
+                    const badge = document.getElementById("statusBadge");
+                    badge.textContent = "Standing By";
+                    badge.style.color = "#58a6ff";
+                    badge.style.borderColor = "#1f6feb44";
+                    badge.style.background = "#1f6feb22";
+                    this.setNodeState("n1", "idle");
+                    this.setNodeState("n2", "idle");
+                    this.setNodeState("n3", "idle");
+                    this.setConnState("c12", "");
+                    this.setConnState("c23", "");
+                    this.setConnState("c31", "");
+                    this.initGatekeeper();
+                    this.running = true;
+                    this.startAuto();
+                    this.updateUI();
+                    this.log("Simulation reset complete", "h");
+                    this.log(
+                        "SHA-256 ledger re-initialized with genesis ancestor",
+                        "s",
+                    );
+                    this.renderLedger(null);
+                }
+
+                startAuto() {
+                    if (this.autoTimer) clearInterval(this.autoTimer);
+                    const tick = () => {
+                        if (!this.running) return;
+                        const auto =
+                            document.getElementById("autoSend").checked;
+                        const rate = parseInt(
+                            document.getElementById("rateSlider").value,
+                        );
+                        document.getElementById("rateLabel").textContent =
+                            rate + "ms";
+                        if (auto && !this._n1busy) this.processPacket();
+                    };
+                    this.autoTimer = setInterval(tick, 600);
+                    document.getElementById("rateSlider").oninput = () => {
+                        if (this.autoTimer) {
+                            clearInterval(this.autoTimer);
+                            this.autoTimer = setInterval(
+                                tick,
+                                parseInt(
+                                    document.getElementById("rateSlider").value,
+                                ),
+                            );
+                        }
+                    };
+                }
+
+                updateUI() {
+                    document.getElementById("mInspected").textContent =
+                        this.metrics.inspected;
+                    document.getElementById("mApproved").textContent =
+                        this.metrics.approved;
+                    document.getElementById("mTerminated").textContent =
+                        this.metrics.terminated;
+                    document.getElementById("mDropped").textContent =
+                        this.metrics.dropped;
+                    document.getElementById("n1stat").textContent =
+                        this.metrics.inspected + " inspected";
+                    const ap = this.metrics.approved;
+                    const tot = Math.max(1, this.metrics.inspected);
+                    document.getElementById("n2stat").textContent =
+                        "score: " + ((ap / tot) * 100).toFixed(0) + "%";
+                    document.getElementById("n3stat").textContent =
+                        "seals: " + (this.ledger.seals.length - 1);
+                    const total =
+                        this.metrics.approved +
+                        this.metrics.terminated +
+                        this.metrics.dropped;
+                    const ratio =
+                        total > 0
+                            ? ((this.metrics.dropped / total) * 100).toFixed(
+                                  1,
+                              ) + "%"
+                            : "0.0%";
+                    document.getElementById("mDropRatio").textContent = ratio;
+                    document.getElementById("mDropRatio").className =
+                        "val" + (this.metrics.dropped > 0 ? " yellow" : "");
+
+                    if (this.metrics.inspected >= 3 && !this.peerConnected) {
+                        this.peerConnected = true;
+                        document.getElementById("mPeers").textContent = "2 / 3";
+                        this.log(
+                            "[SYNC] PEER MESH ESTABLISHED: srp-node-eu-west-01",
+                            "ok",
+                        );
+                        this.log(
+                            "[SYNC] PEER MESH ESTABLISHED: srp-node-ap-southeast-01",
+                            "ok",
+                        );
+                    }
+                }
+
+                renderLedger(newEntry) {
+                    const el = document.getElementById("ledgerContent");
+                    if (!newEntry) {
+                        el.innerHTML =
+                            '<div style="font-size:11px;color:#8b949e">Waiting for traffic...</div>';
+                        return;
+                    }
+                    const entry = document.createElement("div");
+                    entry.className = "ledger-entry";
+                    const actClass =
+                        newEntry.action === "APPROVED" ? "pass" : "fail";
+                    entry.innerHTML =
+                        '<span class="idx">#' +
+                        newEntry.idx +
+                        '</span> <span class="act ' +
+                        actClass +
+                        '">' +
+                        newEntry.action +
+                        '</span> <span style="color:#8b949e">' +
+                        newEntry.ip +
+                        '</span> <div class="seal">' +
+                        newEntry.hash.substr(0, 32) +
+                        "...</div>";
+                    el.insertBefore(entry, el.firstChild);
+                    while (el.children.length > 20)
+                        el.removeChild(el.lastChild);
+                }
+
+                renderGatekeeper() {
+                    const el = document.getElementById("gatekeeperPanel");
+                    const entries = Object.entries(this.gatekeeper);
+                    el.innerHTML = entries
+                        .map(([ip, state]) => {
+                            const c = state === 0xff ? "#f85149" : "#7ee787";
+                            return (
+                                '<div style="display:flex;justify-content:space-between;padding:1px 0"><span style="color:#8b949e">' +
+                                ip +
+                                '</span><span style="color:' +
+                                c +
+                                ';font-weight:600">' +
+                                (state === 0xff ? "0xFF" : "0x01") +
+                                "</span></div>"
+                            );
+                        })
+                        .join("");
+                }
+
+                setNodeState(id, state) {
+                    const el = document.getElementById(id);
+                    if (!el) return;
+                    el.classList.remove(
+                        "state-idle",
+                        "state-busy",
+                        "state-ok",
+                        "state-drop",
+                    );
+                    el.classList.add("state-" + state);
+                }
+
+                setConnState(id, state) {
+                    const el = document.getElementById(id);
+                    if (!el) return;
+                    el.classList.remove("active", "breach");
+                    if (state === "active") el.classList.add("active");
+                    if (state === "breach") el.classList.add("breach");
+                }
+
+                flyDot(id) {
+                    const dot = document.getElementById(id);
+                    if (!dot) return;
+                    dot.classList.remove("fly", "drop");
+                    void dot.offsetWidth;
+                    dot.classList.add("fly");
+                    dot.setAttribute("r", "4");
+                }
+
+                log(msg, cls) {
+                    const el = document.getElementById("logContent");
+                    const d = document.createElement("div");
+                    d.className = "l " + (cls || "i");
+                    d.textContent = msg;
+                    el.appendChild(d);
+                    el.scrollTop = el.scrollHeight;
+                }
+            }
+
+            function sleep(ms) {
+                return new Promise(function (r) {
+                    setTimeout(r, ms);
+                });
+            }
+
+            var sim = new SimEngine();
+        </script>
+    </body>
+</html>
